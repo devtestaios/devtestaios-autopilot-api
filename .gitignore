@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OS cruft
+.DS_Store
+
+# Node/Next (if any appear later)
+node_modules/
+.next/
+.vercel/
+.vercel/output/
+
+# Env files
+.env
+.env.*
