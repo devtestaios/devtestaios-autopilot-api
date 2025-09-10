@@ -34,3 +34,12 @@ async def test_db():
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.get(f"{url}/auth/v1/settings", headers={"apikey": key})
         return {"ok": r.status_code == 200, "status": r.status_code}
+from fastapi import APIRouter
+import os
+
+@app.get("/env-check")
+def env_check():
+    return {
+        "SUPABASE_URL_present": bool(os.getenv("SUPABASE_URL")),
+        "SUPABASE_ANON_KEY_present": bool(os.getenv("SUPABASE_ANON_KEY")),
+    }
