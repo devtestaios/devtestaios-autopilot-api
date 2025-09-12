@@ -5,6 +5,7 @@ import httpx
 
 app = FastAPI(title="Autopilot API", version="0.1.0")
 
+# Allow your Vercel frontends
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https://.*\.vercel\.app$",
@@ -22,8 +23,11 @@ def health():
     return {"ok": True}
 
 @app.get("/_routes")
-def list_routes():
-    return {"routes": sorted([r.path for r in app.routes])}
+def _routes():
+    # show available routes to prove what’s deployed
+    return {
+        "routes": sorted([r.path for r in app.routes])
+    }
 
 @app.get("/version")
 def version():
@@ -39,22 +43,32 @@ def env_check():
 @app.get("/test-db")
 def test_db():
     """
-    Minimal Supabase reachability check.
-    Requires SUPABASE_URL and SUPABASE_ANON_KEY set in Render.
+    Supabase reachability check.
+    Tries /auth/v1/settings (preferred). Falls back to /auth/v1/info.
+    Returns what it tried so 404s are diagnosable.
     """
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_ANON_KEY")
-    if not url or not key:
+    base = os.getenv("SUPABASE_URL")
+    key  = os.getenv("SUPABASE_ANON_KEY")
+    if not base or not key:
         return {
             "ok": False,
-            "SUPABASE_URL_present": bool(url),
+            "SUPABASE_URL_present": bool(base),
             "SUPABASE_ANON_KEY_present": bool(key),
             "error": "Missing SUPABASE_URL or SUPABASE_ANON_KEY",
         }
 
-    info_url = url.rstrip("/") + "/auth/v1/info"
-    try:
-        r = httpx.get(info_url, headers={"apikey": key}, timeout=5.0)
-        return {"ok": r.status_code == 200, "status": r.status_code}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+    base = base.rstrip("/")
+    headers = {"apikey": key}
+    tried = []
+
+    for path in ("/auth/v1/settings", "/auth/v1/info"):
+        url = base + path
+        try:
+            r = httpx.get(url, headers=headers, timeout=7.0)
+            tried.append({"url": url, "status": r.status_code})
+            if r.status_code == 200:
+                return {"ok": True, "status": 200, "url": url}
+        except Exception as e:
+            tried.append({"url": url, "error": str(e)})
+
+    return {"ok": False, "tried": tried}
