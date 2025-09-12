@@ -1,4 +1,4 @@
-vVOfrom fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import httpx
@@ -22,20 +22,12 @@ def health():
     return {"ok": True}
 
 @app.get("/_routes")
-def routes():
-    return {"routes": ["/", "/health", "/_routes", "/test-db"]}
+def list_routes():
+    return {"routes": sorted([r.path for r in app.routes])}
 
-@app.get("/test-db")
-async def test_db():
-    url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-    if not url or not key:
-        return {"ok": False, "error": "Missing Supabase envs on server"}
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(f"{url}/auth/v1/settings", headers={"apikey": key})
-        return {"ok": r.status_code == 200, "status": r.status_code}
-from fastapi import APIRouter
-import os
+@app.get("/version")
+def version():
+    return {"version": app.version}
 
 @app.get("/env-check")
 def env_check():
@@ -43,3 +35,26 @@ def env_check():
         "SUPABASE_URL_present": bool(os.getenv("SUPABASE_URL")),
         "SUPABASE_ANON_KEY_present": bool(os.getenv("SUPABASE_ANON_KEY")),
     }
+
+@app.get("/test-db")
+def test_db():
+    """
+    Minimal Supabase reachability check.
+    Requires SUPABASE_URL and SUPABASE_ANON_KEY set in Render.
+    """
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_ANON_KEY")
+    if not url or not key:
+        return {
+            "ok": False,
+            "SUPABASE_URL_present": bool(url),
+            "SUPABASE_ANON_KEY_present": bool(key),
+            "error": "Missing SUPABASE_URL or SUPABASE_ANON_KEY",
+        }
+
+    info_url = url.rstrip("/") + "/auth/v1/info"
+    try:
+        r = httpx.get(info_url, headers={"apikey": key}, timeout=5.0)
+        return {"ok": r.status_code == 200, "status": r.status_code}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
