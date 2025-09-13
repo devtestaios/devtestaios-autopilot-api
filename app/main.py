@@ -1,11 +1,13 @@
-from fastapi import FastAPI
+from typing import Optional, List
+import os
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-import os, httpx
+import httpx
 
+# ---- App + CORS ----
 app = FastAPI(title="Autopilot API", version="0.1.0")
-
-# Allow your Vercel sites to call the API
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https://.*\.vercel\.app$",
@@ -14,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---- Simple health/version/routes ----
 @app.get("/")
 def root():
     return {"status": "ok", "msg": "Autopilot API root"}
@@ -28,93 +31,75 @@ def version():
 
 @app.get("/_routes")
 def routes():
-    # just show the important ones (nice for debugging what deployed)
-    return {"routes": ["/", "/health", "/_routes", "/version", "/env-check", "/test-db", "/leads"]}
+    return {"routes": [r.path for r in app.routes]}
 
+# ---- Env check + Supabase network check ----
 @app.get("/env-check")
 def env_check():
     return {
         "SUPABASE_URL_present": bool(os.getenv("SUPABASE_URL")),
         "SUPABASE_ANON_KEY_present": bool(os.getenv("SUPABASE_ANON_KEY")),
-        "SUPABASE_SERVICE_ROLE_KEY_present": bool(os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
     }
 
 @app.get("/test-db")
-async def test_db():
-    """
-    Pings a public Supabase auth endpoint to prove URL/key shape.
-    This uses the *anon* key; it doesn't read/write DB.
-    """
-    url = os.getenv("SUPABASE_URL")
-    anon = os.getenv("SUPABASE_ANON_KEY")
-    if not url or not anon:
+def test_db():
+    url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    key = os.getenv("SUPABASE_ANON_KEY", "")
+    if not url or not key:
         return {"ok": False, "error": "Missing Supabase envs on server"}
-    try_urls = [
-        (url.rstrip("/") + "/auth/v1/info", "info"),
-        (url.rstrip("/") + "/auth/v1/settings", "settings"),
-    ]
-    results = []
-    async with httpx.AsyncClient(timeout=10) as client:
-        for u, label in try_urls:
-            r = await client.get(u, headers={"apikey": anon})
-            results.append({"url": u, "label": label, "status": r.status_code})
+
+    targets = [f"{url}/auth/v1/settings", f"{url}/auth/v1/info"]
+    tried = []
+    for t in targets:
+        try:
+            r = httpx.get(t, headers={"apikey": key}, timeout=8.0)
+            tried.append({"url": t, "status": r.status_code})
             if r.status_code == 200:
-                return {"ok": True, "status": 200, "url": u}
-    return {"ok": False, "status": results[-1]["status"] if results else None, "tried": results}
+                return {"ok": True, "status": 200, "url": t}
+        except Exception as e:
+            tried.append({"url": t, "error": str(e)})
+    return {"ok": False, "status": 404, "tried": tried}
 
-# ------------------------
-# Leads endpoints (WRITE + READ via service role)
-# ------------------------
-
+# ---- Leads models ----
 class LeadIn(BaseModel):
     email: EmailStr
-    name: str | None = None
+    name: Optional[str] = None
+    source: Optional[str] = None
 
-@app.post("/leads")
-async def create_lead(payload: LeadIn):
-    """
-    Inserts a row into public.leads using Supabase REST.
-    Uses SERVICE ROLE key (server-only).
-    """
-    base = os.getenv("SUPABASE_URL")
-    srv = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    if not base or not srv:
-        return {"ok": False, "error": "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"}
+class LeadOut(BaseModel):
+    id: str
+    email: EmailStr
+    name: Optional[str] = None
+    source: Optional[str] = None
+    created_at: Optional[str] = None
 
-    rest_url = base.rstrip("/") + "/rest/v1/leads"
-    headers = {
-        "apikey": srv,
-        "Authorization": f"Bearer {srv}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-    }
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.post(rest_url, headers=headers, json=payload.model_dump())
-        try:
-            data = r.json()
-        except Exception:
-            data = {"text": r.text}
-    return {"ok": r.status_code in (200, 201), "status": r.status_code, "data": data}
+# ---- Supabase client (lazy import so local dev works even if not installed) ----
+def _sb():
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_ANON_KEY")
+    if not url or not key:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    try:
+        from supabase import create_client, Client  # type: ignore
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Supabase client import failed: {e}")
+    return create_client(url, key)
 
-@app.get("/leads")
-async def list_leads():
-    """
-    Returns the latest 20 leads.
-    """
-    base = os.getenv("SUPABASE_URL")
-    srv = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    if not base or not srv:
-        return {"ok": False, "error": "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"}
+# ---- Leads endpoints ----
+@app.get("/leads", response_model=List[LeadOut])
+def list_leads():
+    sb = _sb()
+    resp = sb.table("leads").select("*").order("created_at", desc=True).limit(50).execute()
+    return resp.data or []
 
-    rest_url = base.rstrip("/") + "/rest/v1/leads?select=*&order=created_at.desc&limit=20"
-    headers = {
-        "apikey": srv,
-        "Authorization": f"Bearer {srv}",
-    }
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(rest_url, headers=headers)
-        try:
-            data = r.json()
-        except Exception:
-            data = {"text": r.text}
-    return {"ok": r.status_code == 200, "status": r.status_code, "data": data}
+@app.post("/leads", response_model=LeadOut)
+def create_lead(payload: LeadIn):
+    sb = _sb()
+    # Upsert by email (optional): change to .insert if you prefer duplicates
+    resp = sb.table("leads").upsert(
+        {"email": payload.email, "name": payload.name, "source": payload.source},
+        on_conflict="email"
+    ).select("*").single().execute()
+    if not resp.data:
+        raise HTTPException(status_code=500, detail="Insert/upsert failed")
+    return resp.data
