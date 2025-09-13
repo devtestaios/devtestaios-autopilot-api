@@ -3,6 +3,10 @@
 __pycache__/
 *.pyc
 
+# Backup and save files
+*.bak
+*.save*
+
 # OS cruft
 .DS_Store
 
