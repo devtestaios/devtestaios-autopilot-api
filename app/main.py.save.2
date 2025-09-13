@@ -1,4 +1,132 @@
+from typing import Optional, List
+import os
+
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+import httpx
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+import os
+import httpx
+from supab
+# --- App setup ---
+app = FastAPI(title="Autopilot API", version="0.1.0")
+
+# ✅ Restrict CORS to your domains only
+origins = ["https://*.vercel.app", "https://ai-marketing-autopilot.vercel.app"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Environment ---
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
+supabase: Client = None
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# --- Models ---
+class LeadIn(BaseModel):
+    email: EmailStr
+    name: str = None
+    source: str = None
+
+# --- Routes ---
+@app.get("/")
+def root():
+    return {"message": "Welcome to Autopilot API"}
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+@app.get("/version")
+def version():
+    return {"version": "0.1.0"}
+
+@app.get("/_routes")
+def routes():
+    return {"routes": [r.path for r in app.routes]}
+
+@app.get("/env-check")
+def env_check():
+    return {
+        "SUPABASE_URL_present": bool(SUPABASE_URL),
+        "SUPABASE_ANON_KEY_present": bool(SUPABASE_KEY),
+    }
+
+@app.get("/test-db")
+async def test_db():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return {"ok": False, "error": "Missing Supabase envs on server"}
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{SUPABASE_URL}/auth/v1/settings",
+                             headers={"apikey": SUPABASE_KEY})
+        return {"ok": r.status_code == 200, "status": r.status_code, "url": r.url.human_repr()}
+
+@app.get("/leads")
+def get_leads():
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    data = supabase.table("leads").select("*").execute()
+    return data.data
+
+@app.post("/leads")
+def create_lead(lead: LeadIn):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    data = supabase.table("leads").insert(lead.dict()).execute()
+    return data.data
+# ---- App + CORS ----
+app = FastAPI(title="Autopilot API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https://.*\.vercel\.app$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---- Simple health/version/routes ----
+@app.get("/")
+def root():
+    return {"status": "ok", "msg": "Autopilot API root"}
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+@app.get("/version")
+def version():
+    return {"version": "0.1.0"}
+
+@app.get("/_routes")
+def routes():
+    return {"routes": [r.path for r in app.routes]}
+
+# ---- Env check + Supabase network check ----
+@app.get("/env-check")
+def env_check():
+    return {
+        "SUPABASE_URL_present": bool(os.getenv("https://aggorhmzuhdirterhyej.supabase.co")),
+        "SUPABASE_ANON_KEY_present": bool(os.getenv("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZ29yaG16dWhkaXJ0ZXJoeWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4MDU0MTAsImV4cCI6MjA3MTM4MTQxMH0.3eFQjOK_P2fV3UcbH6BC_OB5UcvJPf43Eb9ze8gQyAc")),
+    }≈
+
+@app.get("/test-db")
+def test_db():
+    url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    key = os.getenv("SUPABASE_ANON_KEY", "")
+    if not url or not key:
+        return {"ok": False, "error": "Missing Supabase envs on server"}
+
+    from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict
@@ -109,6 +237,7 @@ def create_lead(lead: LeadIn):
     res = supabase.table("leads").insert(payload).execute()
     return res.data or []
 
+
 # ---------- KPI routes ----------
 @app.get("/kpi/summary")
 def kpi_summary():
@@ -174,4 +303,34 @@ def kpi_daily(days: int = 30):
     # Return in chronological order
     out = [{"day": day, "count": buckets[day]} for day in sorted(buckets.keys())]
     return out
+targets = [f"{url}/auth/v1/settings", f"{url}/auth/v1/info"]
+    tried = []
+    for t in targets:
+        try:
+            r = httpx.get(t, headers={"apikey": key}, timeout=8.0)
+            tried.append({"url": t, "status": r.status_code})
+            if r.status_code == 200:
+                return {"ok": True, "status": 200, "url": t}
+        except Exception as e:
+            tried.append({"url": t, "error": str(e)})
+    return {"ok": False, "status": 404, "tried": tried}
 
+# ---- Leads models ----
+class LeadIn(BaseModel):
+    email: EmailStr
+    name: Optional[str] = None
+    source: Optional[str] = None
+
+class LeadOut(BaseModel):
+    id: str
+    email: EmailStr
+    name: Optional[str] = None
+    source: Optional[str] = None
+    created_at: Optional[str] = None
+
+# ---- Supabase client (lazy import so local dev works even if not installed) ----
+def _sb():
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_ANON_KEY")
+    if not url or not key:
+        raise HTTPException(status_code=500, detail="Supab
