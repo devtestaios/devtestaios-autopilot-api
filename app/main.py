@@ -1,14 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import os
 import httpx
 from datetime import datetime, timedelta, timezone
 
+
 # ---------- Env & Supabase ----------
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL") or os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY") or os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 supabase = None
 try:
@@ -39,6 +40,31 @@ class LeadIn(BaseModel):
     email: EmailStr
     name: Optional[str] = None
     source: Optional[str] = None
+
+
+# ---------- Campaign Models ----------
+class CampaignIn(BaseModel):
+    name: str
+    platform: str
+    client_name: str
+    budget: Optional[float] = None
+    spend: Optional[float] = None
+    metrics: Optional[Dict[str, Any]] = None
+
+class CampaignOut(CampaignIn):
+    id: str
+    created_at: Optional[str] = None
+
+
+# ---------- Performance Snapshot Models ----------
+class PerformanceSnapshotIn(BaseModel):
+    snapshot_date: str  # ISO date string, e.g. "2025-09-15"
+    metrics: Dict[str, Any]
+
+class PerformanceSnapshotOut(PerformanceSnapshotIn):
+    id: str
+    campaign_id: str
+    created_at: Optional[str] = None
 
 
 # ---------- Utility ----------
@@ -95,6 +121,73 @@ def get_leads(limit: int = 100) -> List[Dict]:
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase env vars missing")
     res = supabase.table("leads").select("*").order("created_at", desc=True).limit(limit).execute()
+    return res.data or []
+
+
+# ---------- Campaigns API ----------
+@app.get("/campaigns", response_model=List[CampaignOut])
+def get_campaigns(limit: int = 100):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    res = supabase.table("campaigns").select("*").order("created_at", desc=True).limit(limit).execute()
+    return res.data or []
+
+@app.post("/campaigns", response_model=CampaignOut)
+def create_campaign(campaign: CampaignIn):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    payload = campaign.dict()
+    res = supabase.table("campaigns").insert(payload).execute()
+    if not res.data:
+        raise HTTPException(status_code=400, detail="Failed to create campaign")
+    return res.data[0]
+
+@app.get("/campaigns/{campaign_id}", response_model=CampaignOut)
+def get_campaign(campaign_id: str):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    res = supabase.table("campaigns").select("*").eq("id", campaign_id).single().execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return res.data
+
+@app.put("/campaigns/{campaign_id}", response_model=CampaignOut)
+def update_campaign(campaign_id: str, campaign: CampaignIn):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    payload = campaign.dict()
+    res = supabase.table("campaigns").update(payload).eq("id", campaign_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Campaign not found or not updated")
+    return res.data[0]
+
+@app.delete("/campaigns/{campaign_id}")
+def delete_campaign(campaign_id: str):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    res = supabase.table("campaigns").delete().eq("id", campaign_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Campaign not found or not deleted")
+    return {"ok": True, "deleted": res.data}
+
+
+# ---------- Performance Snapshots API ----------
+@app.post("/campaigns/{campaign_id}/performance", response_model=PerformanceSnapshotOut)
+def create_performance_snapshot(campaign_id: str, snapshot: PerformanceSnapshotIn):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    payload = snapshot.dict()
+    payload["campaign_id"] = campaign_id
+    res = supabase.table("performance_snapshots").insert(payload).execute()
+    if not res.data:
+        raise HTTPException(status_code=400, detail="Failed to create performance snapshot")
+    return res.data[0]
+
+@app.get("/campaigns/{campaign_id}/performance", response_model=List[PerformanceSnapshotOut])
+def get_performance_snapshots(campaign_id: str, limit: int = 100):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase env vars missing")
+    res = supabase.table("performance_snapshots").select("*").eq("campaign_id", campaign_id).order("snapshot_date", desc=True).limit(limit).execute()
     return res.data or []
 
 @app.post("/leads")
