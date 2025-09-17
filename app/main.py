@@ -1,8 +1,11 @@
+
+import os
+print("DEBUG: SUPABASE_URL:", os.getenv("SUPABASE_URL"))
+print("DEBUG: SUPABASE_KEY:", os.getenv("SUPABASE_KEY"))
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict, Any
-import os
 import httpx
 from datetime import datetime, timedelta, timezone
 
