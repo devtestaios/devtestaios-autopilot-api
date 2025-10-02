@@ -7,9 +7,18 @@ from typing import Optional, List, Dict, Any
 import httpx
 from datetime import datetime, timedelta, timezone
 
+# Google Ads Integration
+try:
+    from google_ads_integration import get_google_ads_client
+    google_ads_available = True
+except ImportError:
+    google_ads_available = False
+    get_google_ads_client = None
+
 
 # ---------- Env & Supabase ----------
 SUPABASE_URL = os.getenv("SUPABASE_URL")
+
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 supabase = None
@@ -268,4 +277,194 @@ def kpi_daily(days: int = 30):
     # Return in chronological order
     out = [{"day": day, "count": buckets[day]} for day in sorted(buckets.keys())]
     return out
+
+
+# ---------- Google Ads Integration Endpoints ----------
+
+@app.get("/google-ads/status")
+def google_ads_status():
+    """Check Google Ads API connection status"""
+    if not google_ads_available:
+        return {
+            "available": False,
+            "error": "Google Ads client not installed or configured",
+            "required_env_vars": [
+                "GOOGLE_ADS_DEVELOPER_TOKEN",
+                "GOOGLE_ADS_CLIENT_ID",
+                "GOOGLE_ADS_CLIENT_SECRET", 
+                "GOOGLE_ADS_REFRESH_TOKEN",
+                "GOOGLE_ADS_CUSTOMER_ID"
+            ]
+        }
+    
+    client = get_google_ads_client()
+    if not client.is_available():
+        return {
+            "available": False,
+            "error": "Google Ads client not properly configured",
+            "missing_env_vars": True
+        }
+    
+    # Test the connection
+    connection_test = client.test_connection()
+    return {
+        "available": True,
+        "connection_test": connection_test
+    }
+
+@app.get("/google-ads/campaigns")
+def get_google_ads_campaigns():
+    """Fetch campaigns directly from Google Ads"""
+    if not google_ads_available:
+        raise HTTPException(status_code=503, detail="Google Ads integration not available")
+    
+    client = get_google_ads_client()
+    if not client.is_available():
+        raise HTTPException(status_code=503, detail="Google Ads client not configured")
+    
+    campaigns = client.get_campaigns()
+    return {
+        "campaigns": campaigns,
+        "count": len(campaigns),
+        "source": "google_ads_api"
+    }
+
+@app.post("/google-ads/sync-campaigns")
+def sync_google_ads_campaigns():
+    """Sync campaigns from Google Ads to our database"""
+    if not google_ads_available:
+        raise HTTPException(status_code=503, detail="Google Ads integration not available")
+    
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+    
+    client = get_google_ads_client()
+    if not client.is_available():
+        raise HTTPException(status_code=503, detail="Google Ads client not configured")
+    
+    # Fetch campaigns from Google Ads
+    google_campaigns = client.get_campaigns()
+    
+    synced_campaigns = []
+    for google_campaign in google_campaigns:
+        try:
+            # Check if campaign already exists in our database
+            existing = supabase.table("campaigns").select("*").eq("name", google_campaign["name"]).eq("platform", "google_ads").execute()
+            
+            campaign_data = {
+                "name": google_campaign["name"],
+                "platform": "google_ads", 
+                "client_name": "Google Ads Import",  # Could be enhanced to extract actual client
+                "budget": google_campaign["budget"],
+                "spend": google_campaign["spend"],
+                "metrics": {
+                    "google_ads_id": google_campaign["google_ads_id"],
+                    "status": google_campaign["status"],
+                    "advertising_channel": google_campaign["advertising_channel"],
+                    "impressions": google_campaign["impressions"],
+                    "clicks": google_campaign["clicks"],
+                    "conversions": google_campaign["conversions"],
+                    "ctr": google_campaign["ctr"],
+                    "average_cpc": google_campaign["average_cpc"],
+                    "cost_per_conversion": google_campaign["cost_per_conversion"]
+                }
+            }
+            
+            if existing.data:
+                # Update existing campaign
+                result = supabase.table("campaigns").update(campaign_data).eq("id", existing.data[0]["id"]).execute()
+                synced_campaigns.append({"action": "updated", "campaign": result.data[0]})
+            else:
+                # Create new campaign
+                result = supabase.table("campaigns").insert(campaign_data).execute()
+                synced_campaigns.append({"action": "created", "campaign": result.data[0]})
+                
+        except Exception as e:
+            synced_campaigns.append({"action": "error", "campaign_name": google_campaign["name"], "error": str(e)})
+    
+    return {
+        "synced_campaigns": synced_campaigns,
+        "total_processed": len(google_campaigns),
+        "successful_syncs": len([c for c in synced_campaigns if c["action"] in ["created", "updated"]])
+    }
+
+@app.get("/google-ads/campaigns/{google_ads_id}/performance")  
+def get_google_ads_campaign_performance(google_ads_id: str, days: int = 30):
+    """Get performance data for a specific Google Ads campaign"""
+    if not google_ads_available:
+        raise HTTPException(status_code=503, detail="Google Ads integration not available")
+    
+    client = get_google_ads_client()
+    if not client.is_available():
+        raise HTTPException(status_code=503, detail="Google Ads client not configured")
+    
+    performance_data = client.get_campaign_performance(google_ads_id, days)
+    return {
+        "campaign_id": google_ads_id,
+        "days": days,
+        "performance_data": performance_data,
+        "data_points": len(performance_data)
+    }
+
+@app.post("/google-ads/sync-performance/{campaign_id}")
+def sync_campaign_performance(campaign_id: str, days: int = 30):
+    """Sync performance data from Google Ads for a specific campaign"""
+    if not google_ads_available:
+        raise HTTPException(status_code=503, detail="Google Ads integration not available")
+    
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+    
+    client = get_google_ads_client()
+    if not client.is_available():
+        raise HTTPException(status_code=503, detail="Google Ads client not configured")
+    
+    # Get campaign from our database to find Google Ads ID
+    campaign = supabase.table("campaigns").select("*").eq("id", campaign_id).execute()
+    if not campaign.data:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    campaign_data = campaign.data[0]
+    google_ads_id = campaign_data.get("metrics", {}).get("google_ads_id")
+    
+    if not google_ads_id:
+        raise HTTPException(status_code=400, detail="Campaign does not have Google Ads ID")
+    
+    # Fetch performance data from Google Ads
+    performance_data = client.get_campaign_performance(google_ads_id, days)
+    
+    synced_snapshots = []
+    for daily_data in performance_data:
+        try:
+            snapshot_data = {
+                "snapshot_date": daily_data["date"],
+                "metrics": {
+                    "spend": daily_data["spend"],
+                    "impressions": daily_data["impressions"],
+                    "clicks": daily_data["clicks"], 
+                    "conversions": daily_data["conversions"],
+                    "ctr": daily_data["ctr"],
+                    "average_cpc": daily_data["average_cpc"],
+                    "cost_per_conversion": daily_data["cost_per_conversion"]
+                }
+            }
+            
+            # Upsert performance snapshot
+            result = supabase.table("performance_snapshots").upsert({
+                "campaign_id": campaign_id,
+                **snapshot_data
+            }).execute()
+            
+            synced_snapshots.append({"date": daily_data["date"], "status": "synced"})
+            
+        except Exception as e:
+            synced_snapshots.append({"date": daily_data["date"], "status": "error", "error": str(e)})
+    
+    return {
+        "campaign_id": campaign_id,
+        "google_ads_id": google_ads_id,
+        "synced_snapshots": synced_snapshots,
+        "total_days": len(performance_data),
+        "successful_syncs": len([s for s in synced_snapshots if s["status"] == "synced"])
+    }
 
