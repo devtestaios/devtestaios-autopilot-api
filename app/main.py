@@ -597,8 +597,8 @@ async def health_check():
     db_status = "disconnected"
     if SUPABASE_AVAILABLE and supabase:
         try:
-            # Test with a simple query
-            result = supabase.table("email_campaigns").select("id").limit(1).execute()
+            # Test with a simple query - use leads table which definitely exists
+            result = supabase.table("leads").select("id").limit(1).execute()
             db_status = "connected"
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
