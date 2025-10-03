@@ -23,14 +23,16 @@ logger = logging.getLogger(__name__)
 try:
     from supabase import create_client, Client
     SUPABASE_URL = os.getenv('SUPABASE_URL')
-    SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY')
+    # Try SUPABASE_KEY first (your variable), then fallback to SUPABASE_ANON_KEY
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_ANON_KEY')
     
-    if SUPABASE_URL and SUPABASE_ANON_KEY:
-        supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    if SUPABASE_URL and SUPABASE_KEY:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
         SUPABASE_AVAILABLE = True
         logger.info("✅ Supabase client initialized successfully")
     else:
         logger.warning("❌ Supabase environment variables not found")
+        logger.warning(f"SUPABASE_URL: {bool(SUPABASE_URL)}, SUPABASE_KEY: {bool(SUPABASE_KEY)}")
         supabase = None
         SUPABASE_AVAILABLE = False
 except ImportError as e:
@@ -615,14 +617,17 @@ async def health_check():
 @app.get("/debug/supabase")
 async def debug_supabase():
     """Debug Supabase connection"""
+    supabase_key = os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_ANON_KEY')
     return {
         "supabase_url_configured": bool(os.getenv('SUPABASE_URL')),
-        "supabase_key_configured": bool(os.getenv('SUPABASE_ANON_KEY')),
+        "supabase_key_configured": bool(supabase_key),
         "supabase_available": SUPABASE_AVAILABLE,
         "supabase_client_exists": supabase is not None,
         "env_vars": {
             "SUPABASE_URL": os.getenv('SUPABASE_URL', 'NOT_SET')[:50] + "..." if os.getenv('SUPABASE_URL') else None,
-            "SUPABASE_ANON_KEY": os.getenv('SUPABASE_ANON_KEY', 'NOT_SET')[:20] + "..." if os.getenv('SUPABASE_ANON_KEY') else None
+            "SUPABASE_KEY": os.getenv('SUPABASE_KEY', 'NOT_SET')[:20] + "..." if os.getenv('SUPABASE_KEY') else None,
+            "SUPABASE_ANON_KEY": os.getenv('SUPABASE_ANON_KEY', 'NOT_SET')[:20] + "..." if os.getenv('SUPABASE_ANON_KEY') else None,
+            "SUPABASE_SERVICE_ROLE_KEY": os.getenv('SUPABASE_SERVICE_ROLE_KEY', 'NOT_SET')[:20] + "..." if os.getenv('SUPABASE_SERVICE_ROLE_KEY') else None
         }
     }
 
