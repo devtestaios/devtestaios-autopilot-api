@@ -631,6 +631,38 @@ async def debug_supabase():
         }
     }
 
+@app.get("/debug/tables")
+async def debug_tables():
+    """List available tables in the database"""
+    if not SUPABASE_AVAILABLE:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+    
+    try:
+        # Try to get the schema information
+        result = supabase.table("information_schema.tables").select("table_name").eq("table_schema", "public").execute()
+        return {
+            "tables_found": len(result.data),
+            "tables": [row["table_name"] for row in result.data] if result.data else [],
+            "raw_response": result.data
+        }
+    except Exception as e:
+        # Fallback: try to query some common table names to see which exist
+        test_tables = ["email_campaigns", "campaigns", "leads", "social_media_accounts", "team_members"]
+        existing_tables = []
+        
+        for table in test_tables:
+            try:
+                result = supabase.table(table).select("id").limit(1).execute()
+                existing_tables.append(table)
+            except:
+                pass
+        
+        return {
+            "error": str(e),
+            "test_method": "table_probing",
+            "existing_tables": existing_tables
+        }
+
 @app.get("/health/instagram")
 async def instagram_health_check():
     """Instagram OAuth configuration health check"""
