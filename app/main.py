@@ -2102,6 +2102,337 @@ async def complete_social_media_oauth(request: dict):
         raise HTTPException(status_code=500, detail=f"OAuth completion error: {str(e)}")
 
 # ===============================================
+# AI-POWERED AGENTIC SYSTEM API ENDPOINTS
+# ===============================================
+
+# AI Cycles Management
+@app.get("/api/ai/cycles")
+async def get_ai_cycles(limit: int = 50):
+    """Get AI decision cycles and autonomous operations"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        response = supabase.table("master_ai_cycles").select("*").order("created_at", desc=True).limit(limit).execute()
+        return {
+            "cycles": response.data or [],
+            "count": len(response.data or []),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching AI cycles: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.post("/api/ai/cycles")
+async def create_ai_cycle(cycle_data: dict):
+    """Create a new AI decision cycle"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        cycle_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("master_ai_cycles").insert(cycle_data).execute()
+        return response.data[0] if response.data else {}
+    except Exception as e:
+        logger.error(f"Error creating AI cycle: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# AI Decisions Tracking
+@app.get("/api/ai/decisions")
+async def get_ai_decisions(limit: int = 50, decision_type: str = None):
+    """Get AI decision logs with filtering"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        query = supabase.table("ai_decision_logs").select("*").order("created_at", desc=True).limit(limit)
+        if decision_type:
+            query = query.eq("decision_type", decision_type)
+        
+        response = query.execute()
+        return {
+            "decisions": response.data or [],
+            "count": len(response.data or []),
+            "filter": {"decision_type": decision_type, "limit": limit},
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching AI decisions: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.post("/api/ai/decisions")
+async def log_ai_decision(decision_data: dict):
+    """Log a new AI decision"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        decision_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("ai_decision_logs").insert(decision_data).execute()
+        return response.data[0] if response.data else {}
+    except Exception as e:
+        logger.error(f"Error logging AI decision: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# AI Performance Monitoring
+@app.get("/api/ai/performance")
+async def get_ai_performance_scores(limit: int = 50, metric_type: str = None):
+    """Get AI performance scores and metrics"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        query = supabase.table("ai_performance_scores").select("*").order("created_at", desc=True).limit(limit)
+        if metric_type:
+            query = query.eq("metric_type", metric_type)
+        
+        response = query.execute()
+        return {
+            "performance_scores": response.data or [],
+            "count": len(response.data or []),
+            "filter": {"metric_type": metric_type, "limit": limit},
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching AI performance scores: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.post("/api/ai/performance")
+async def record_ai_performance(performance_data: dict):
+    """Record AI performance metrics"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        performance_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("ai_performance_scores").insert(performance_data).execute()
+        return response.data[0] if response.data else {}
+    except Exception as e:
+        logger.error(f"Error recording AI performance: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# AI Smart Alerts
+@app.get("/api/ai/alerts")
+async def get_ai_alerts(limit: int = 50, severity: str = None, status: str = "active"):
+    """Get AI-generated smart alerts and notifications"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        query = supabase.table("ai_smart_alerts").select("*").order("created_at", desc=True).limit(limit)
+        if severity:
+            query = query.eq("severity", severity)
+        if status:
+            query = query.eq("status", status)
+        
+        response = query.execute()
+        return {
+            "alerts": response.data or [],
+            "count": len(response.data or []),
+            "filter": {"severity": severity, "status": status, "limit": limit},
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching AI alerts: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.post("/api/ai/alerts")
+async def create_ai_alert(alert_data: dict):
+    """Create a new AI-generated alert"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        alert_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("ai_smart_alerts").insert(alert_data).execute()
+        return response.data[0] if response.data else {}
+    except Exception as e:
+        logger.error(f"Error creating AI alert: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.put("/api/ai/alerts/{alert_id}")
+async def update_ai_alert(alert_id: str, alert_data: dict):
+    """Update an existing AI alert (e.g., mark as resolved)"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        alert_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("ai_smart_alerts").update(alert_data).eq("id", alert_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="AI alert not found")
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating AI alert: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# AI Recommendations
+@app.get("/api/ai/recommendations")
+async def get_ai_recommendations(limit: int = 50, recommendation_type: str = None, status: str = "active"):
+    """Get AI-generated recommendations and insights"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        query = supabase.table("ai_recommendations").select("*").order("priority", desc=True).order("created_at", desc=True).limit(limit)
+        if recommendation_type:
+            query = query.eq("recommendation_type", recommendation_type)
+        if status:
+            query = query.eq("status", status)
+        
+        response = query.execute()
+        return {
+            "recommendations": response.data or [],
+            "count": len(response.data or []),
+            "filter": {"recommendation_type": recommendation_type, "status": status, "limit": limit},
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching AI recommendations: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.post("/api/ai/recommendations")
+async def create_ai_recommendation(recommendation_data: dict):
+    """Create a new AI recommendation"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        recommendation_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("ai_recommendations").insert(recommendation_data).execute()
+        return response.data[0] if response.data else {}
+    except Exception as e:
+        logger.error(f"Error creating AI recommendation: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.put("/api/ai/recommendations/{recommendation_id}")
+async def update_ai_recommendation(recommendation_id: str, recommendation_data: dict):
+    """Update an existing AI recommendation"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        recommendation_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("ai_recommendations").update(recommendation_data).eq("id", recommendation_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="AI recommendation not found")
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating AI recommendation: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# AI System Status
+@app.get("/api/ai/system-status")
+async def get_ai_system_status():
+    """Get comprehensive AI system status and health metrics"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Get recent AI cycles count
+        cycles_response = supabase.table("master_ai_cycles").select("id").limit(10).execute()
+        recent_cycles = len(cycles_response.data or [])
+        
+        # Get active alerts count
+        alerts_response = supabase.table("ai_smart_alerts").select("id").eq("status", "active").execute()
+        active_alerts = len(alerts_response.data or [])
+        
+        # Get latest performance score
+        performance_response = supabase.table("ai_performance_scores").select("*").order("created_at", desc=True).limit(1).execute()
+        latest_performance = performance_response.data[0] if performance_response.data else None
+        
+        # Get system configuration
+        config_response = supabase.table("ai_system_config").select("*").execute()
+        system_config = config_response.data[0] if config_response.data else {}
+        
+        # Get recent decisions count
+        decisions_response = supabase.table("ai_decision_logs").select("id").limit(10).execute()
+        recent_decisions = len(decisions_response.data or [])
+        
+        # Get active recommendations count
+        recommendations_response = supabase.table("ai_recommendations").select("id").eq("status", "active").execute()
+        active_recommendations = len(recommendations_response.data or [])
+        
+        # Determine system health
+        health_score = 1.0
+        if active_alerts > 5:
+            health_score -= 0.2
+        if recent_cycles < 3:
+            health_score -= 0.1
+        if latest_performance and latest_performance.get("score", 0.5) < 0.5:
+            health_score -= 0.2
+        
+        health_status = "excellent" if health_score > 0.9 else "good" if health_score > 0.7 else "warning" if health_score > 0.5 else "critical"
+        
+        return {
+            "system_health": {
+                "status": health_status,
+                "score": round(health_score, 2),
+                "ai_integration": "enabled",
+                "autonomous_mode": system_config.get("autonomous_mode_enabled", True)
+            },
+            "metrics": {
+                "recent_ai_cycles": recent_cycles,
+                "active_alerts": active_alerts,
+                "recent_decisions": recent_decisions,
+                "active_recommendations": active_recommendations,
+                "latest_performance_score": latest_performance.get("score", 0.75) if latest_performance else 0.75
+            },
+            "configuration": {
+                "ai_provider": os.getenv('AI_PROVIDER', 'openai'),
+                "claude_available": bool(os.getenv('ANTHROPIC_API_KEY')),
+                "openai_available": bool(os.getenv('OPENAI_API_KEY')),
+                "autonomous_mode": system_config.get("autonomous_mode_enabled", True),
+                "decision_threshold": system_config.get("decision_threshold", 0.8)
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching AI system status: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# AI Campaign Forecasts
+@app.get("/api/ai/forecasts")
+async def get_ai_forecasts(limit: int = 20, forecast_type: str = None):
+    """Get AI-generated campaign forecasts and predictions"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        query = supabase.table("ai_campaign_forecasts").select("*").order("created_at", desc=True).limit(limit)
+        if forecast_type:
+            query = query.eq("forecast_type", forecast_type)
+        
+        response = query.execute()
+        return {
+            "forecasts": response.data or [],
+            "count": len(response.data or []),
+            "filter": {"forecast_type": forecast_type, "limit": limit},
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching AI forecasts: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.post("/api/ai/forecasts")
+async def create_ai_forecast(forecast_data: dict):
+    """Create a new AI campaign forecast"""
+    if not SUPABASE_AVAILABLE or not supabase:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        forecast_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        response = supabase.table("ai_campaign_forecasts").insert(forecast_data).execute()
+        return response.data[0] if response.data else {}
+    except Exception as e:
+        logger.error(f"Error creating AI forecast: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+# ===============================================
 # EMAIL MARKETING API ENDPOINTS
 # ===============================================
 
