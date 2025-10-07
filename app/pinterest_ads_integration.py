@@ -195,7 +195,7 @@ async def get_pinterest_ads_campaigns(limit: int = 25) -> List[Dict[str, Any]]:
     """Get Pinterest Ads campaigns"""
     client = get_pinterest_client()
     if not client:
-        raise HTTPException(status_code=400, detail="Pinterest Ads not configured")
+        raise HTTPException(status_code=503, detail="Pinterest Ads not configured")
     
     return client.get_campaigns(limit)
 
@@ -206,7 +206,7 @@ async def get_pinterest_ads_performance(
     """Get Pinterest Ads performance data"""
     client = get_pinterest_client()
     if not client:
-        raise HTTPException(status_code=400, detail="Pinterest Ads not configured")
+        raise HTTPException(status_code=503, detail="Pinterest Ads not configured")
     
     # Calculate date range
     end_date = datetime.now()

@@ -158,7 +158,7 @@ async def get_linkedin_ads_campaigns(limit: int = 25) -> List[Dict[str, Any]]:
     """Get LinkedIn Ads campaigns"""
     client = get_linkedin_client()
     if not client:
-        raise HTTPException(status_code=400, detail="LinkedIn Ads not configured")
+        raise HTTPException(status_code=503, detail="LinkedIn Ads not configured")
     
     return client.get_campaigns(limit)
 
@@ -169,7 +169,7 @@ async def get_linkedin_ads_performance(
     """Get LinkedIn Ads performance data"""
     client = get_linkedin_client()
     if not client:
-        raise HTTPException(status_code=400, detail="LinkedIn Ads not configured")
+        raise HTTPException(status_code=503, detail="LinkedIn Ads not configured")
     
     # Calculate date range
     end_date = datetime.now()

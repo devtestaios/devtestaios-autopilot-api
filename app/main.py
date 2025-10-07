@@ -50,6 +50,19 @@ from optimization_endpoints import router as optimization_router
 # Import Multi-Platform Sync Engine
 from sync_endpoints import router as sync_router
 
+# Import Advanced Analytics
+from analytics_endpoints import router as analytics_router
+
+# Import Autonomous Decision Framework
+from autonomous_decision_endpoints import router as autonomous_router
+
+# Import Hybrid AI System
+from hybrid_ai_endpoints import router as hybrid_ai_router
+
+# Import Billing System
+from billing_endpoints import router as billing_router
+from sync_endpoints import router as sync_router
+
 # Import Advanced Analytics Engine
 from analytics_endpoints import router as analytics_router
 
@@ -144,6 +157,9 @@ app.include_router(autonomous_router)
 
 # Include Hybrid AI System router (NEW)
 app.include_router(hybrid_ai_router)
+
+# Include Billing System router (REVENUE ENGINE)
+app.include_router(billing_router)
 
 # ================================
 # GOOGLE ADS INTEGRATION ENDPOINTS
@@ -3722,3 +3738,10 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
+# Add compliance routes
+from app.api.compliance import router as compliance_router
+app.include_router(compliance_router)
+
+# Add compliance routes
+from app.api.compliance import router as compliance_router
+app.include_router(compliance_router)
