@@ -3745,3 +3745,11 @@ app.include_router(compliance_router)
 # Add compliance routes
 from app.api.compliance import router as compliance_router
 app.include_router(compliance_router)
+
+# Add performance routes
+from app.api.performance import router as performance_router
+app.include_router(performance_router)
+
+# Add monitoring routes
+from app.api.monitoring import router as monitoring_router
+app.include_router(monitoring_router)
