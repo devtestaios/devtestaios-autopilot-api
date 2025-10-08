@@ -15,8 +15,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/ml", tags=["ML Optimization"])
 
-# Global ML model instance
-budget_optimizer = BudgetOptimizerML()
+# Global ML model instance (lazy initialization)
+_budget_optimizer = None
+
+def get_budget_optimizer():
+    """Get or create budget optimizer instance"""
+    global _budget_optimizer
+    if _budget_optimizer is None:
+        _budget_optimizer = BudgetOptimizerML()
+    return _budget_optimizer
 
 
 # Request/Response Models
@@ -74,8 +81,10 @@ async def train_budget_optimizer(
     try:
         logger.info(f"Starting ML model training on {len(request.campaign_ids)} campaigns")
 
+        optimizer = get_budget_optimizer()
+
         # Train the model
-        training_results = await budget_optimizer.train_on_multiple_campaigns(
+        training_results = await optimizer.train_on_multiple_campaigns(
             campaign_ids=request.campaign_ids,
             access_token=request.access_token,
             days_back=request.days_back,
@@ -83,7 +92,7 @@ async def train_budget_optimizer(
         )
 
         # Save model in background
-        background_tasks.add_task(budget_optimizer.save_model)
+        background_tasks.add_task(optimizer.save_model)
 
         return {
             "status": "success",
@@ -113,7 +122,9 @@ async def predict_optimal_budget(request: BudgetPredictionRequest) -> BudgetPred
     Requires model to be trained first via /train endpoint.
     """
     try:
-        if not budget_optimizer.is_trained:
+        optimizer = get_budget_optimizer()
+
+        if not optimizer.is_trained:
             raise HTTPException(
                 status_code=400,
                 detail="Model not trained. Please train the model first using /ml/train endpoint."
@@ -133,7 +144,7 @@ async def predict_optimal_budget(request: BudgetPredictionRequest) -> BudgetPred
             )
 
         # Make prediction
-        prediction = budget_optimizer.predict_optimal_budget(
+        prediction = optimizer.predict_optimal_budget(
             recent_performance=recent_performance,
             prediction_date=request.prediction_date
         )
@@ -163,7 +174,8 @@ async def get_model_info() -> ModelInfoResponse:
     - Last training timestamp
     """
     try:
-        model_info = budget_optimizer.get_model_info()
+        optimizer = get_budget_optimizer()
+        model_info = optimizer.get_model_info()
         return ModelInfoResponse(**model_info)
 
     except Exception as e:
@@ -179,10 +191,12 @@ async def save_model() -> Dict[str, str]:
     Returns path to saved model file.
     """
     try:
-        if not budget_optimizer.is_trained:
+        optimizer = get_budget_optimizer()
+
+        if not optimizer.is_trained:
             raise HTTPException(status_code=400, detail="No trained model to save")
 
-        filepath = budget_optimizer.save_model()
+        filepath = optimizer.save_model()
 
         return {
             "status": "success",
@@ -208,8 +222,9 @@ async def load_model(filepath: str) -> Dict[str, Any]:
     Returns model information after loading.
     """
     try:
-        budget_optimizer.load_model(filepath)
-        model_info = budget_optimizer.get_model_info()
+        optimizer = get_budget_optimizer()
+        optimizer.load_model(filepath)
+        model_info = optimizer.get_model_info()
 
         return {
             "status": "success",
@@ -227,11 +242,12 @@ async def load_model(filepath: str) -> Dict[str, Any]:
 @router.get("/health")
 async def ml_health_check() -> Dict[str, Any]:
     """Health check for ML optimization system"""
+    optimizer = get_budget_optimizer()
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "model_trained": budget_optimizer.is_trained,
-        "model_version": budget_optimizer.model_version,
+        "model_trained": optimizer.is_trained,
+        "model_version": optimizer.model_version,
         "capabilities": [
             "budget_prediction",
             "model_training",
