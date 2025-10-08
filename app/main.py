@@ -63,7 +63,13 @@ from app.hybrid_ai_endpoints import router as hybrid_ai_router
 from app.billing_endpoints import router as billing_router
 
 # Import ML Optimization System (NEW - Real ML Budget Optimizer)
-from app.ml_optimization_endpoints import router as ml_router
+try:
+    from app.ml_optimization_endpoints import router as ml_router
+    ML_OPTIMIZATION_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"ML Optimization system not available: {e}")
+    ML_OPTIMIZATION_AVAILABLE = False
+    ml_router = None
 
 # Import Google Ads Integration
 try:
@@ -158,7 +164,11 @@ app.include_router(hybrid_ai_router)
 app.include_router(billing_router)
 
 # Include ML Optimization System router (REAL AI)
-app.include_router(ml_router)
+if ML_OPTIMIZATION_AVAILABLE and ml_router:
+    app.include_router(ml_router)
+    logger.info("ML Optimization system loaded successfully")
+else:
+    logger.warning("ML Optimization system not available - skipping router inclusion")
 
 # ================================
 # GOOGLE ADS INTEGRATION ENDPOINTS
