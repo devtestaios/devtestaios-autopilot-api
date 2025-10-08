@@ -96,7 +96,7 @@ async def get_autonomous_status():
     return {
         "status": "active",
         "system_version": "1.0.0",
-        "autonomy_level": current_autonomy_settings.autonomy_level,
+        "autonomy_level": current_autonomy_settings.risk_tolerance,
         "auto_execution_enabled": current_autonomy_settings.auto_execution_enabled,
         "safety_guardrails_enabled": current_autonomy_settings.safety_guardrails_enabled,
         "active_decisions": 0,
