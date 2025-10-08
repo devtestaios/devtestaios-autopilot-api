@@ -149,8 +149,22 @@ class MultiPlatformSyncEngine:
         self.google_ads = GoogleAdsConnector()
         self.meta = MetaConnector()
         self.linkedin = LinkedInConnector()
+        self.connectors = {}
         self.campaigns = {}
         self.sync_history = []
+
+    def add_connector(self, connector: Any) -> None:
+        """Add a platform connector to the sync engine"""
+        # Store connector by type
+        if isinstance(connector, GoogleAdsConnector):
+            self.google_ads = connector
+            self.connectors['google_ads'] = connector
+        elif isinstance(connector, MetaConnector):
+            self.meta = connector
+            self.connectors['meta'] = connector
+        elif isinstance(connector, LinkedInConnector):
+            self.linkedin = connector
+            self.connectors['linkedin'] = connector
 
     async def create_universal_campaign(self, campaign: UniversalCampaign) -> Dict[str, List[SyncResult]]:
         """Create campaign across all specified platforms"""
