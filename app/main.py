@@ -61,13 +61,9 @@ from app.hybrid_ai_endpoints import router as hybrid_ai_router
 
 # Import Billing System
 from app.billing_endpoints import router as billing_router
-from app.sync_endpoints import router as sync_router
 
-# Import Advanced Analytics Engine
-from app.analytics_endpoints import router as analytics_router
-
-# Import Autonomous Decision Framework
-from app.autonomous_decision_endpoints import router as autonomous_router
+# Import ML Optimization System (NEW - Real ML Budget Optimizer)
+from app.ml_optimization_endpoints import router as ml_router
 
 # Import Google Ads Integration
 try:
@@ -160,6 +156,9 @@ app.include_router(hybrid_ai_router)
 
 # Include Billing System router (REVENUE ENGINE)
 app.include_router(billing_router)
+
+# Include ML Optimization System router (REAL AI)
+app.include_router(ml_router)
 
 # ================================
 # GOOGLE ADS INTEGRATION ENDPOINTS
