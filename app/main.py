@@ -110,7 +110,7 @@ security = HTTPBearer(auto_error=False)
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     logger.info("🚀 PulseBridge.ai Backend Starting...")
-    logger.info(f"AI Provider: {os.getenv('AI_PROVIDER', 'openai')}")
+    logger.info(f"AI Provider: {os.getenv('AI_PROVIDER', 'anthropic')}")
     logger.info(f"Claude API Key: {'✅ Configured' if os.getenv('ANTHROPIC_API_KEY') else '❌ Missing'}")
     logger.info(f"OpenAI API Key: {'✅ Configured' if os.getenv('OPENAI_API_KEY') else '❌ Missing'}")
     yield
@@ -588,7 +588,7 @@ async def root():
         "version": "1.0.0",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "ai_integration": "enabled",
-        "ai_provider": os.getenv('AI_PROVIDER', 'openai'),
+        "ai_provider": os.getenv('AI_PROVIDER', 'anthropic'),
         "endpoints": {
             "ai_chat": "/api/v1/ai/chat",
             "ai_actions": "/api/v1/ai/execute-action",
@@ -605,7 +605,7 @@ async def health_check():
     ai_status = {
         "claude_configured": bool(os.getenv('ANTHROPIC_API_KEY')),
         "openai_configured": bool(os.getenv('OPENAI_API_KEY')),
-        "preferred_provider": os.getenv('AI_PROVIDER', 'openai'),
+        "preferred_provider": os.getenv('AI_PROVIDER', 'anthropic'),
         "service_healthy": True
     }
     
@@ -733,7 +733,7 @@ async def get_campaigns():
             "created_at": "2025-09-15T10:00:00Z"
         },
         {
-            "id": "camp_002", 
+            "id": "camp_002",
             "name": "Brand Awareness Q4",
             "platform": "meta",
             "status": "active",
@@ -742,6 +742,11 @@ async def get_campaigns():
             "created_at": "2025-09-10T14:30:00Z"
         }
     ]
+
+@app.get("/campaigns")
+async def get_campaigns_alias():
+    """Convenience alias for /api/v1/campaigns"""
+    return await get_campaigns()
 
 @app.post("/api/v1/campaigns")
 async def create_campaign(campaign_data: Dict[str, Any]):
@@ -2399,7 +2404,7 @@ async def get_ai_system_status():
                 "latest_performance_score": latest_performance.get("score", 0.75) if latest_performance else 0.75
             },
             "configuration": {
-                "ai_provider": os.getenv('AI_PROVIDER', 'openai'),
+                "ai_provider": os.getenv('AI_PROVIDER', 'anthropic'),
                 "claude_available": bool(os.getenv('ANTHROPIC_API_KEY')),
                 "openai_available": bool(os.getenv('OPENAI_API_KEY')),
                 "autonomous_mode": system_config.get("autonomous_mode_enabled", True),

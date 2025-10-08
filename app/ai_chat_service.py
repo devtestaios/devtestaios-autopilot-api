@@ -28,7 +28,7 @@ class AIService:
     def __init__(self):
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.claude_api_key = os.getenv('ANTHROPIC_API_KEY')
-        self.preferred_provider = os.getenv('AI_PROVIDER', 'openai')  # 'openai' or 'claude'
+        self.preferred_provider = os.getenv('AI_PROVIDER', 'anthropic')  # 'anthropic' or 'openai'
         
     async def chat_with_ai(self, request: ChatRequest) -> ChatResponse:
         """Main AI chat interface that routes to the appropriate provider"""

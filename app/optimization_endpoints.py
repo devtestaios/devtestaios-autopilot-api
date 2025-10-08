@@ -394,6 +394,27 @@ async def get_performance_insights(campaign_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get insights: {str(e)}")
 
+# General status endpoint (no campaign ID required)
+@router.get("/status")
+async def get_optimization_status():
+    """Get general optimization engine status"""
+    return {
+        "status": "active",
+        "engine_version": "1.0.0",
+        "capabilities": [
+            "budget_optimization",
+            "bid_management",
+            "performance_analysis",
+            "automated_execution",
+            "risk_assessment"
+        ],
+        "active_optimizations": 0,
+        "total_campaigns_optimized": 0,
+        "last_optimization": None,
+        "uptime": "operational",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 # Health check endpoint
 @router.get("/health")
 async def optimization_engine_health():
@@ -403,7 +424,7 @@ async def optimization_engine_health():
         "engine_version": "1.0.0",
         "capabilities": [
             "budget_optimization",
-            "bid_management", 
+            "bid_management",
             "performance_analysis",
             "automated_execution",
             "risk_assessment"
