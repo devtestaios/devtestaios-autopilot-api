@@ -70,6 +70,9 @@ class SyncResult(BaseModel):
 class GoogleAdsConnector:
     """Stub Google Ads connector"""
 
+    def __init__(self, credentials: Optional[Dict[str, str]] = None):
+        self.credentials = credentials or {}
+
     async def sync_campaign(self, campaign: UniversalCampaign) -> SyncResult:
         """Sync campaign to Google Ads"""
         return SyncResult(
@@ -92,6 +95,9 @@ class GoogleAdsConnector:
 class MetaConnector:
     """Stub Meta connector"""
 
+    def __init__(self, credentials: Optional[Dict[str, str]] = None):
+        self.credentials = credentials or {}
+
     async def sync_campaign(self, campaign: UniversalCampaign) -> SyncResult:
         """Sync campaign to Meta"""
         return SyncResult(
@@ -113,6 +119,9 @@ class MetaConnector:
 
 class LinkedInConnector:
     """Stub LinkedIn connector"""
+
+    def __init__(self, credentials: Optional[Dict[str, str]] = None):
+        self.credentials = credentials or {}
 
     async def sync_campaign(self, campaign: UniversalCampaign) -> SyncResult:
         """Sync campaign to LinkedIn"""
