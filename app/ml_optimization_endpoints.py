@@ -242,19 +242,27 @@ async def load_model(filepath: str) -> Dict[str, Any]:
 @router.get("/health")
 async def ml_health_check() -> Dict[str, Any]:
     """Health check for ML optimization system"""
-    optimizer = get_budget_optimizer()
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "model_trained": optimizer.is_trained,
-        "model_version": optimizer.model_version,
-        "capabilities": [
-            "budget_prediction",
-            "model_training",
-            "model_persistence",
-            "feature_engineering"
-        ]
-    }
+    try:
+        optimizer = get_budget_optimizer()
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "model_trained": optimizer.is_trained,
+            "model_version": optimizer.model_version,
+            "capabilities": [
+                "budget_prediction",
+                "model_training",
+                "model_persistence",
+                "feature_engineering"
+            ]
+        }
+    except Exception as e:
+        logger.error(f"ML health check error: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 
 # Export router
