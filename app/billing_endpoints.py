@@ -221,9 +221,9 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
     return {"received": True}
 
 # Helper functions (implement these based on your database structure)
-from billing_database import (
+from app.billing_database import (
     get_company_by_id,
-    update_company_stripe_customer, 
+    update_company_stripe_customer,
     update_company_subscription,
     get_company_by_stripe_customer,
     log_billing_event

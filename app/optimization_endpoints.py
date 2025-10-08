@@ -9,8 +9,8 @@ from datetime import datetime
 import asyncio
 import json
 
-from optimization_engine import (
-    CampaignOptimizationEngine, 
+from app.optimization_engine import (
+    CampaignOptimizationEngine,
     OptimizationExecutor,
     PerformanceMetrics,
     OptimizationRecommendation,

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import asyncio
 import json
 
-from multi_platform_sync import (
+from app.multi_platform_sync import (
     MultiPlatformSyncEngine,
     GoogleAdsConnector,
     MetaConnector,

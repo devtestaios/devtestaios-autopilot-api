@@ -1,7 +1,7 @@
 # AI Chat Endpoints for FastAPI Backend
 # Add these to your main.py file in the FastAPI backend
 
-from ai_chat_service import ai_service, ChatRequest, ChatResponse
+from app.ai_chat_service import ai_service, ChatRequest, ChatResponse
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 import json

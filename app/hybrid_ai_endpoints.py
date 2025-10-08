@@ -11,8 +11,8 @@ import logging
 import json
 
 # Import hybrid AI components
-from meta_ai_hybrid_integration import PulseBridgeAIMasterController, CrossPlatformMetrics, AIDecisionLog, AIDecisionType, OverrideReason
-from smart_risk_management import SmartRiskManager, ClientReportingManager, RiskLevel, ClientVisibilityMode, RISK_MANAGEMENT_TEMPLATES, CLIENT_REPORTING_TEMPLATES
+from app.meta_ai_hybrid_integration import PulseBridgeAIMasterController, CrossPlatformMetrics, AIDecisionLog, AIDecisionType, OverrideReason
+from app.smart_risk_management import SmartRiskManager, ClientReportingManager, RiskLevel, ClientVisibilityMode, RISK_MANAGEMENT_TEMPLATES, CLIENT_REPORTING_TEMPLATES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/hybrid-ai", tags=["Hybrid AI System"])

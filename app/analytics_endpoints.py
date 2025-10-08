@@ -10,7 +10,7 @@ import json
 import logging
 from pydantic import BaseModel, Field
 
-from advanced_analytics_engine import (
+from app.advanced_analytics_engine import (
     AdvancedAnalyticsEngine,
     PredictiveMetrics,
     CrossPlatformCorrelation,

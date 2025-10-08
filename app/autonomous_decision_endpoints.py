@@ -12,8 +12,8 @@ import logging
 import asyncio
 
 # Import our autonomous decision components
-from autonomous_decision_framework import (
-    AutonomousDecisionFramework, 
+from app.autonomous_decision_framework import (
+    AutonomousDecisionFramework,
     AutonomousDecision,
     DecisionContext,
     DecisionType,
@@ -22,7 +22,7 @@ from autonomous_decision_framework import (
     ExecutionResult,
     LearningFeedback
 )
-from decision_execution_engine import DecisionExecutionEngine
+from app.decision_execution_engine import DecisionExecutionEngine
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
