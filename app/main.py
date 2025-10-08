@@ -71,6 +71,24 @@ except ImportError as e:
     ML_OPTIMIZATION_AVAILABLE = False
     ml_router = None
 
+# Import Lead Scoring System (NEW - AI-Powered Lead Qualification)
+try:
+    from app.lead_scoring_endpoints import router as lead_scoring_router
+    LEAD_SCORING_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Lead Scoring system not available: {e}")
+    LEAD_SCORING_AVAILABLE = False
+    lead_scoring_router = None
+
+# Import Workflow Automation System (NEW - Cross-Platform Automation)
+try:
+    from app.workflow_automation_endpoints import router as workflow_router
+    WORKFLOW_AUTOMATION_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Workflow Automation system not available: {e}")
+    WORKFLOW_AUTOMATION_AVAILABLE = False
+    workflow_router = None
+
 # Import Google Ads Integration
 try:
     from app.google_ads_integration import get_google_ads_client, fetch_campaigns_from_google_ads, fetch_performance_from_google_ads
@@ -169,6 +187,20 @@ if ML_OPTIMIZATION_AVAILABLE and ml_router:
     logger.info("ML Optimization system loaded successfully")
 else:
     logger.warning("ML Optimization system not available - skipping router inclusion")
+
+# Include Lead Scoring System router (AI LEAD QUALIFICATION)
+if LEAD_SCORING_AVAILABLE and lead_scoring_router:
+    app.include_router(lead_scoring_router)
+    logger.info("Lead Scoring system loaded successfully")
+else:
+    logger.warning("Lead Scoring system not available - skipping router inclusion")
+
+# Include Workflow Automation System router (CROSS-PLATFORM AUTOMATION)
+if WORKFLOW_AUTOMATION_AVAILABLE and workflow_router:
+    app.include_router(workflow_router)
+    logger.info("Workflow Automation system loaded successfully")
+else:
+    logger.warning("Workflow Automation system not available - skipping router inclusion")
 
 # ================================
 # GOOGLE ADS INTEGRATION ENDPOINTS
