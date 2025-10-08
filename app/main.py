@@ -41,37 +41,37 @@ except ImportError as e:
     SUPABASE_AVAILABLE = False
 
 # Import AI Services
-from ai_endpoints import ai_router
-from ai_chat_service import ai_service, ChatRequest
+from app.ai_endpoints import ai_router
+from app.ai_chat_service import ai_service, ChatRequest
 
 # Import Optimization Engine
-from optimization_endpoints import router as optimization_router
+from app.optimization_endpoints import router as optimization_router
 
 # Import Multi-Platform Sync Engine
-from sync_endpoints import router as sync_router
+from app.sync_endpoints import router as sync_router
 
 # Import Advanced Analytics
-from analytics_endpoints import router as analytics_router
+from app.analytics_endpoints import router as analytics_router
 
 # Import Autonomous Decision Framework
-from autonomous_decision_endpoints import router as autonomous_router
+from app.autonomous_decision_endpoints import router as autonomous_router
 
 # Import Hybrid AI System
-from hybrid_ai_endpoints import router as hybrid_ai_router
+from app.hybrid_ai_endpoints import router as hybrid_ai_router
 
 # Import Billing System
-from billing_endpoints import router as billing_router
-from sync_endpoints import router as sync_router
+from app.billing_endpoints import router as billing_router
+from app.sync_endpoints import router as sync_router
 
 # Import Advanced Analytics Engine
-from analytics_endpoints import router as analytics_router
+from app.analytics_endpoints import router as analytics_router
 
 # Import Autonomous Decision Framework
-from autonomous_decision_endpoints import router as autonomous_router
+from app.autonomous_decision_endpoints import router as autonomous_router
 
 # Import Google Ads Integration
 try:
-    from google_ads_integration import get_google_ads_client, fetch_campaigns_from_google_ads, fetch_performance_from_google_ads
+    from app.google_ads_integration import get_google_ads_client, fetch_campaigns_from_google_ads, fetch_performance_from_google_ads
     GOOGLE_ADS_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Google Ads integration not available: {e}")
@@ -82,26 +82,26 @@ except ImportError as e:
     def fetch_performance_from_google_ads(campaign_id: str, days: int = 30): return []
 
 # Import Meta Business API Integration - ✅ VALIDATED CREDENTIALS
-from meta_business_api import meta_api
+from app.meta_business_api import meta_api
 
-# Import LinkedIn Ads Integration  
-from linkedin_ads_integration import (
+# Import LinkedIn Ads Integration
+from app.linkedin_ads_integration import (
     get_linkedin_ads_status,
     get_linkedin_ads_campaigns,
     get_linkedin_ads_performance
 )
 
 # Import Pinterest Ads Integration
-from pinterest_ads_integration import (
+from app.pinterest_ads_integration import (
     get_pinterest_ads_status,
     get_pinterest_ads_campaigns,
     get_pinterest_ads_performance
 )
 
 # Import Hybrid AI System (NEW)
-from meta_ai_hybrid_integration import PulseBridgeAIMasterController, CrossPlatformMetrics, AIDecisionLog
-from smart_risk_management import SmartRiskManager, ClientReportingManager, RISK_MANAGEMENT_TEMPLATES, CLIENT_REPORTING_TEMPLATES
-from hybrid_ai_endpoints import hybrid_ai_router
+from app.meta_ai_hybrid_integration import PulseBridgeAIMasterController, CrossPlatformMetrics, AIDecisionLog
+from app.smart_risk_management import SmartRiskManager, ClientReportingManager, RISK_MANAGEMENT_TEMPLATES, CLIENT_REPORTING_TEMPLATES
+from app.hybrid_ai_endpoints import hybrid_ai_router
 
 # Security
 security = HTTPBearer(auto_error=False)
