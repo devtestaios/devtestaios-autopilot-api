@@ -89,6 +89,15 @@ except ImportError as e:
     WORKFLOW_AUTOMATION_AVAILABLE = False
     workflow_router = None
 
+# Import Platform Interconnectivity System (NEW - Cross-Platform Communication)
+try:
+    from app.interconnect_endpoints import router as interconnect_router
+    PLATFORM_INTERCONNECT_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Platform Interconnectivity system not available: {e}")
+    PLATFORM_INTERCONNECT_AVAILABLE = False
+    interconnect_router = None
+
 # Import Google Ads Integration
 try:
     from app.google_ads_integration import get_google_ads_client, fetch_campaigns_from_google_ads, fetch_performance_from_google_ads
@@ -201,6 +210,13 @@ if WORKFLOW_AUTOMATION_AVAILABLE and workflow_router:
     logger.info("Workflow Automation system loaded successfully")
 else:
     logger.warning("Workflow Automation system not available - skipping router inclusion")
+
+# Include Platform Interconnectivity System router (CROSS-PLATFORM COMMUNICATION)
+if PLATFORM_INTERCONNECT_AVAILABLE and interconnect_router:
+    app.include_router(interconnect_router)
+    logger.info("Platform Interconnectivity system loaded successfully")
+else:
+    logger.warning("Platform Interconnectivity system not available - skipping router inclusion")
 
 # ================================
 # GOOGLE ADS INTEGRATION ENDPOINTS
