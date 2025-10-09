@@ -52,11 +52,17 @@ from app.predictive_analytics import PredictiveAnalytics
 from app.financial_suite import FinancialSuite
 from app.invoice_billing_system import InvoicingSystem
 
+# Import Enhanced Conversational AI Services
+from app.enhanced_conversational_ai import EnhancedConversationalAI
+from app.voice_integration_service import VoiceIntegrationService
+
 # ML Service and Predictive Analytics Instances
 ml_service_instance = None
 predictive_analytics_instance = None
 financial_suite_instance = None
 invoicing_system_instance = None
+conversational_ai_instance = None
+voice_integration_instance = None
 
 async def get_ml_service():
     """Get or create ML service instance"""
@@ -86,6 +92,20 @@ async def get_invoicing_system():
     if invoicing_system_instance is None:
         invoicing_system_instance = InvoicingSystem()
     return invoicing_system_instance
+
+async def get_conversational_ai():
+    """Get or create conversational AI instance"""
+    global conversational_ai_instance
+    if conversational_ai_instance is None:
+        conversational_ai_instance = EnhancedConversationalAI()
+    return conversational_ai_instance
+
+async def get_voice_integration():
+    """Get or create voice integration instance"""
+    global voice_integration_instance
+    if voice_integration_instance is None:
+        voice_integration_instance = VoiceIntegrationService()
+    return voice_integration_instance
 
 # Import Optimization Engine
 from app.optimization_endpoints import router as optimization_router
@@ -3919,6 +3939,252 @@ app.include_router(compliance_router)
 # Add compliance routes
 from app.api.compliance import router as compliance_router
 app.include_router(compliance_router)
+
+# ================================
+# ENHANCED CONVERSATIONAL AI ENDPOINTS
+# ================================
+
+@app.post("/ai/conversation/start")
+async def start_conversation(request: Dict[str, Any]):
+    """Start a new conversation session with enhanced AI"""
+    try:
+        conversational_ai = await get_conversational_ai()
+        result = await conversational_ai.start_conversation(
+            user_id=request.get("user_id"),
+            context=request.get("context", "general"),
+            language=request.get("language")
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Conversation start failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Conversation start failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ai/conversation/{session_id}/message")
+async def process_conversation_message(session_id: str, request: Dict[str, Any]):
+    """Process a message in an ongoing conversation"""
+    try:
+        conversational_ai = await get_conversational_ai()
+        result = await conversational_ai.process_message(session_id, request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Message processing failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Message processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ai/voice/synthesize")
+async def generate_voice_response(request: Dict[str, Any]):
+    """Generate voice synthesis for text response"""
+    try:
+        text = request.get("text")
+        language = request.get("language", "en")
+        voice_style = request.get("voice_style", "friendly")
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required for voice synthesis")
+        
+        conversational_ai = await get_conversational_ai()
+        result = await conversational_ai.generate_voice_response(text, language, voice_style)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Voice synthesis failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Voice synthesis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ai/translate")
+async def translate_message(request: Dict[str, Any]):
+    """Translate message between languages"""
+    try:
+        text = request.get("text")
+        from_language = request.get("from_language")
+        to_language = request.get("to_language")
+        
+        if not all([text, from_language, to_language]):
+            raise HTTPException(status_code=400, detail="Text, from_language, and to_language are required")
+        
+        conversational_ai = await get_conversational_ai()
+        result = await conversational_ai.translate_message(text, from_language, to_language)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Translation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Translation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/ai/conversation/{session_id}/analytics")
+async def get_conversation_analytics(session_id: str):
+    """Get analytics for a conversation session"""
+    try:
+        conversational_ai = await get_conversational_ai()
+        result = await conversational_ai.get_conversation_analytics(session_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=404, detail=result.get("error", "Conversation not found"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Conversation analytics failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================================
+# VOICE INTEGRATION ENDPOINTS
+# ================================
+
+@app.post("/voice/session/start")
+async def start_voice_session(request: Dict[str, Any]):
+    """Start a new voice communication session"""
+    try:
+        voice_integration = await get_voice_integration()
+        result = await voice_integration.start_voice_session(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Voice session start failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Voice session start failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/voice/session/{session_id}/audio")
+async def process_audio_input(session_id: str, request: Dict[str, Any]):
+    """Process incoming audio and convert to text"""
+    try:
+        voice_integration = await get_voice_integration()
+        result = await voice_integration.process_audio_input(session_id, request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Audio processing failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Audio processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/voice/session/{session_id}/speak")
+async def generate_speech_response(session_id: str, request: Dict[str, Any]):
+    """Generate speech from text response"""
+    try:
+        voice_integration = await get_voice_integration()
+        result = await voice_integration.generate_speech_response(session_id, request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Speech generation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Speech generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/voice/session/{session_id}/settings")
+async def update_voice_settings(session_id: str, request: Dict[str, Any]):
+    """Update voice settings for an active session"""
+    try:
+        voice_integration = await get_voice_integration()
+        result = await voice_integration.update_voice_settings(session_id, request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Voice settings update failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Voice settings update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/voice/session/{session_id}/analytics")
+async def get_voice_analytics(session_id: str):
+    """Get analytics for a voice session"""
+    try:
+        voice_integration = await get_voice_integration()
+        result = await voice_integration.get_voice_analytics(session_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=404, detail=result.get("error", "Voice session not found"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Voice analytics failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/voice/session/{session_id}")
+async def end_voice_session(session_id: str):
+    """End a voice session and cleanup resources"""
+    try:
+        voice_integration = await get_voice_integration()
+        result = await voice_integration.end_voice_session(session_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Voice session end failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Voice session end failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/voice/languages/supported")
+async def get_supported_languages():
+    """Get list of supported languages for voice processing"""
+    try:
+        voice_integration = await get_voice_integration()
+        result = await voice_integration.get_supported_languages()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Language support query failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Language support query failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================================
+# END ENHANCED CONVERSATIONAL AI
+# ================================
 
 # ================================
 # FINANCIAL SUITE ENDPOINTS
