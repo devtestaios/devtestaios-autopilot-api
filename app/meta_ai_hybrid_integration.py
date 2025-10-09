@@ -9,6 +9,10 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
 
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Graceful ML imports - optional for core functionality
 try:
     import numpy as np
@@ -22,10 +26,6 @@ except ImportError:
     StandardScaler = None
     ML_AVAILABLE = False
     logger.warning("ML dependencies not available - using basic fallback operations")
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 class AIDecisionType(Enum):
     STRATEGIC_OVERRIDE = "strategic_override"

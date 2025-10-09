@@ -226,7 +226,35 @@ else:
 def google_ads_status():
     """Check Google Ads API connection status"""
     try:
+        # Check if Google Ads is available
+        if not GOOGLE_ADS_AVAILABLE:
+            return {
+                "status": "error",
+                "connected": False,
+                "error": "Google Ads integration not available - import failed",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        
         google_ads_client = get_google_ads_client()
+        
+        # Check if client was created successfully
+        if google_ads_client is None:
+            return {
+                "status": "error", 
+                "connected": False,
+                "error": "Google Ads client failed to initialize - check environment variables",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        
+        # Check if client has the expected method
+        if not hasattr(google_ads_client, 'get_connection_status'):
+            return {
+                "status": "error",
+                "connected": False, 
+                "error": "Google Ads client missing get_connection_status method",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        
         status = google_ads_client.get_connection_status()
         
         return {
@@ -246,6 +274,43 @@ def google_ads_status():
             "error": str(e),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
+
+@app.get("/google-ads/diagnostics")
+def google_ads_diagnostics():
+    """Diagnostic information for Google Ads integration"""
+    import os
+    
+    diagnostics = {
+        "google_ads_available": GOOGLE_ADS_AVAILABLE,
+        "environment_variables": {
+            "GOOGLE_ADS_DEVELOPER_TOKEN": "SET" if os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN") else "NOT SET",
+            "GOOGLE_ADS_CLIENT_ID": "SET" if os.getenv("GOOGLE_ADS_CLIENT_ID") else "NOT SET", 
+            "GOOGLE_ADS_CLIENT_SECRET": "SET" if os.getenv("GOOGLE_ADS_CLIENT_SECRET") else "NOT SET",
+            "GOOGLE_ADS_REFRESH_TOKEN": "SET" if os.getenv("GOOGLE_ADS_REFRESH_TOKEN") else "NOT SET",
+            "GOOGLE_ADS_CUSTOMER_ID": "SET" if os.getenv("GOOGLE_ADS_CUSTOMER_ID") else "NOT SET"
+        }
+    }
+    
+    # Try to check Google Ads library availability
+    try:
+        from google.ads.googleads.client import GoogleAdsClient
+        diagnostics["googleads_library"] = "AVAILABLE"
+    except ImportError as e:
+        diagnostics["googleads_library"] = f"NOT AVAILABLE: {e}"
+    
+    # Check if we can get the client
+    try:
+        if GOOGLE_ADS_AVAILABLE:
+            client = get_google_ads_client()
+            diagnostics["client_creation"] = "SUCCESS" if client else "FAILED - CLIENT IS NONE"
+            if client:
+                diagnostics["client_available"] = client.is_available()
+        else:
+            diagnostics["client_creation"] = "SKIPPED - IMPORT FAILED"
+    except Exception as e:
+        diagnostics["client_creation"] = f"ERROR: {e}"
+    
+    return diagnostics
 
 @app.get("/google-ads/campaigns")
 def get_google_ads_campaigns():
