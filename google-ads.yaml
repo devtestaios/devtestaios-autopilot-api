@@ -1,0 +1,31 @@
+# Google Ads API Configuration
+# This file configures the Google Ads API client for PulseBridge.ai
+
+# Required: Protocol Buffer message format setting
+use_proto_plus: True
+
+# API endpoint configuration
+endpoint: "googleads.googleapis.com"
+
+# Authentication settings (credentials will be loaded from environment variables)
+# GOOGLE_ADS_DEVELOPER_TOKEN: Required developer token
+# GOOGLE_ADS_CLIENT_ID: OAuth2 client ID
+# GOOGLE_ADS_CLIENT_SECRET: OAuth2 client secret
+# GOOGLE_ADS_REFRESH_TOKEN: OAuth2 refresh token
+# GOOGLE_ADS_CUSTOMER_ID: Google Ads customer ID
+
+# Logging configuration
+logging:
+  version: 1
+  disable_existing_loggers: False
+  formatters:
+    default_fmt:
+      format: '[%(asctime)s - %(levelname)s] %(message)s'
+      datefmt: '%Y-%m-%d %H:%M:%S'
+  handlers:
+    default_handler:
+      class: logging.StreamHandler
+      formatter: default_fmt
+  loggers:
+    "":
+      handlers: [default_handler]

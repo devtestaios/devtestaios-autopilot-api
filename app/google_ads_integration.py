@@ -4,23 +4,36 @@ Handles authentication, campaign sync, and performance data retrieval
 """
 
 import os
+import yaml
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
-from google.ads.googleads.client import GoogleAdsClient
-from google.ads.googleads.errors import GoogleAdsException
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+try:
+    from google.ads.googleads.client import GoogleAdsClient
+    from google.ads.googleads.errors import GoogleAdsException
+    GOOGLE_ADS_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Google Ads library not available: {e}")
+    GOOGLE_ADS_AVAILABLE = False
+    GoogleAdsClient = None
+    GoogleAdsException = None
+
 class GoogleAdsIntegration:
     """Google Ads API client for campaign management and data sync"""
     
     def __init__(self):
-        """Initialize Google Ads client with environment variables"""
+        """Initialize Google Ads client with environment variables and configuration file"""
         self.client = None
         self.customer_id = os.getenv("GOOGLE_ADS_CUSTOMER_ID")
+        
+        if not GOOGLE_ADS_AVAILABLE:
+            logger.warning("Google Ads library not available - integration disabled")
+            return
         
         # Check if all required environment variables are present
         required_env_vars = [
@@ -38,16 +51,39 @@ class GoogleAdsIntegration:
             self.client = None
         else:
             try:
-                # Create Google Ads client
-                self.client = GoogleAdsClient.load_from_env()
-                logger.info("Google Ads client initialized successfully")
+                # Try to load from configuration file first
+                config_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "google-ads.yaml")
+                if os.path.exists(config_file_path):
+                    # Create a configuration dictionary with the required use_proto_plus setting
+                    config_dict = {
+                        "use_proto_plus": True,
+                        "developer_token": os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
+                        "client_id": os.getenv("GOOGLE_ADS_CLIENT_ID"),
+                        "client_secret": os.getenv("GOOGLE_ADS_CLIENT_SECRET"),
+                        "refresh_token": os.getenv("GOOGLE_ADS_REFRESH_TOKEN"),
+                        "login_customer_id": os.getenv("GOOGLE_ADS_CUSTOMER_ID")
+                    }
+                    self.client = GoogleAdsClient.load_from_dict(config_dict)
+                    logger.info("Google Ads client initialized with use_proto_plus configuration")
+                else:
+                    # Fallback to environment variables with manual configuration
+                    config_dict = {
+                        "use_proto_plus": True,
+                        "developer_token": os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
+                        "client_id": os.getenv("GOOGLE_ADS_CLIENT_ID"),
+                        "client_secret": os.getenv("GOOGLE_ADS_CLIENT_SECRET"),
+                        "refresh_token": os.getenv("GOOGLE_ADS_REFRESH_TOKEN"),
+                        "login_customer_id": os.getenv("GOOGLE_ADS_CUSTOMER_ID")
+                    }
+                    self.client = GoogleAdsClient.load_from_dict(config_dict)
+                    logger.info("Google Ads client initialized from environment variables with use_proto_plus")
             except Exception as e:
                 logger.error(f"Failed to initialize Google Ads client: {e}")
                 self.client = None
     
     def is_available(self) -> bool:
         """Check if Google Ads integration is available"""
-        return self.client is not None and self.customer_id is not None
+        return GOOGLE_ADS_AVAILABLE and self.client is not None and self.customer_id is not None
     
     def test_connection(self) -> Dict[str, Any]:
         """Test the Google Ads API connection"""
@@ -242,3 +278,11 @@ google_ads_client = GoogleAdsIntegration()
 def get_google_ads_client() -> GoogleAdsIntegration:
     """Get the Google Ads client instance"""
     return google_ads_client
+
+def fetch_campaigns_from_google_ads() -> List[Dict[str, Any]]:
+    """Fetch campaigns from Google Ads - wrapper function for main.py compatibility"""
+    return google_ads_client.get_campaigns()
+
+def fetch_performance_from_google_ads(campaign_id: str, days: int = 30) -> List[Dict[str, Any]]:
+    """Fetch performance data from Google Ads - wrapper function for main.py compatibility"""
+    return google_ads_client.get_campaign_performance(campaign_id, days)
