@@ -46,8 +46,18 @@ class GoogleAdsIntegration:
         
         missing_vars = [var for var in required_env_vars if not os.getenv(var)]
         
+        # Check if we have placeholder values that shouldn't be used
+        placeholder_patterns = ["your_", "placeholder", "example", "1234567890"]
+        has_placeholders = any(
+            any(pattern in str(os.getenv(var, "")).lower() for pattern in placeholder_patterns)
+            for var in required_env_vars
+        )
+        
         if missing_vars:
             logger.warning(f"Missing Google Ads environment variables: {missing_vars}")
+            self.client = None
+        elif has_placeholders:
+            logger.info("Google Ads credentials contain placeholder values - integration disabled for safety")
             self.client = None
         else:
             try:
