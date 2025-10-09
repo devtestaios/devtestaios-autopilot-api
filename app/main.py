@@ -56,6 +56,9 @@ from app.invoice_billing_system import InvoicingSystem
 from app.enhanced_conversational_ai import EnhancedConversationalAI
 from app.voice_integration_service import VoiceIntegrationService
 
+# Import HR Suite Services
+from app.hr_suite import HRSuite
+
 # ML Service and Predictive Analytics Instances
 ml_service_instance = None
 predictive_analytics_instance = None
@@ -63,6 +66,7 @@ financial_suite_instance = None
 invoicing_system_instance = None
 conversational_ai_instance = None
 voice_integration_instance = None
+hr_suite_instance = None
 
 async def get_ml_service():
     """Get or create ML service instance"""
@@ -106,6 +110,13 @@ async def get_voice_integration():
     if voice_integration_instance is None:
         voice_integration_instance = VoiceIntegrationService()
     return voice_integration_instance
+
+async def get_hr_suite():
+    """Get or create HR suite instance"""
+    global hr_suite_instance
+    if hr_suite_instance is None:
+        hr_suite_instance = HRSuite()
+    return hr_suite_instance
 
 # Import Optimization Engine
 from app.optimization_endpoints import router as optimization_router
@@ -4596,3 +4607,191 @@ app.include_router(performance_router)
 # Add monitoring routes
 from app.api.monitoring import router as monitoring_router
 app.include_router(monitoring_router)
+
+# ================================
+# HR SUITE ENDPOINTS
+# ================================
+
+@app.post("/hr/employees")
+async def create_employee(employee_data: dict):
+    """Create a new employee record"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.create_employee(employee_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Employee creation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Employee creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/hr/employees/{employee_id}")
+async def update_employee(employee_id: str, update_data: dict):
+    """Update employee information"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.update_employee(employee_id, update_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Employee update failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Employee update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/hr/performance-reviews")
+async def create_performance_review(review_data: dict):
+    """Create a performance review"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.create_performance_review(review_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Performance review creation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Performance review creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/hr/leave-requests")
+async def submit_leave_request(leave_data: dict):
+    """Submit a leave request"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.submit_leave_request(leave_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Leave request submission failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Leave request submission failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/hr/leave-requests/{request_id}")
+async def process_leave_request(request_id: str, approval_data: dict):
+    """Approve or deny a leave request"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.process_leave_request(request_id, approval_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Leave request processing failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Leave request processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/hr/candidates")
+async def add_job_candidate(candidate_data: dict):
+    """Add a new job candidate"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.add_job_candidate(candidate_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Candidate addition failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Candidate addition failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/hr/candidates/{candidate_id}/stage")
+async def update_candidate_stage(candidate_id: str, stage_data: dict):
+    """Update candidate recruitment stage"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.update_candidate_stage(candidate_id, stage_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Candidate stage update failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Candidate stage update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/hr/training/enroll")
+async def enroll_employee_training(training_data: dict):
+    """Enroll employee in training program"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.enroll_employee_training(training_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Training enrollment failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Training enrollment failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/hr/training/{training_id}/complete")
+async def complete_training(training_id: str, completion_data: dict):
+    """Mark training as completed"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.complete_training(training_id, completion_data)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Training completion failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Training completion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/hr/analytics")
+async def get_employee_analytics(employee_id: Optional[str] = None):
+    """Get employee analytics and insights"""
+    try:
+        hr_suite = await get_hr_suite()
+        result = await hr_suite.get_employee_analytics(employee_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Employee analytics failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Employee analytics failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================================
+# END HR SUITE
+# ================================
