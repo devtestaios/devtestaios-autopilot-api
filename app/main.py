@@ -4830,24 +4830,36 @@ async def get_employee_analytics(employee_id: Optional[str] = None):
 # BUSINESS SETUP WIZARD
 # ================================
 
-# Import business setup wizard
-from app.business_setup_wizard import router as wizard_router
-app.include_router(wizard_router)
+try:
+    # Import business setup wizard
+    from app.business_setup_wizard import router as wizard_router
+    app.include_router(wizard_router)
+    logger.info("✓ Business setup wizard loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load business setup wizard: {e}")
 
 # ================================
-# END BUSINESS SETUP WIZARD  
+# END BUSINESS SETUP WIZARD
 # ================================
 
-# ADMIN USER MANAGEMENT
+# ADMIN USER MANAGEMENT & AUTHENTICATION
 # ================================
 
-# Import admin user management
-from app.admin_user_management import router as admin_router
-app.include_router(admin_router)
+try:
+    # Import admin login/authentication FIRST (others depend on it)
+    from app.admin_login import router as auth_router
+    app.include_router(auth_router)
+    logger.info("✓ Admin authentication loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load admin authentication: {e}")
 
-# Import admin login/authentication
-from app.admin_login import router as auth_router
-app.include_router(auth_router)
+try:
+    # Import admin user management (depends on auth)
+    from app.admin_user_management import router as admin_router
+    app.include_router(admin_router)
+    logger.info("✓ Admin user management loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load admin user management: {e}")
 
 # ================================
 # END ADMIN USER MANAGEMENT
