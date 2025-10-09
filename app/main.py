@@ -4825,3 +4825,15 @@ async def get_employee_analytics(employee_id: Optional[str] = None):
 # ================================
 # END HR SUITE
 # ================================
+
+# ================================
+# BUSINESS SETUP WIZARD
+# ================================
+
+# Import business setup wizard
+from app.business_setup_wizard import router as wizard_router
+app.include_router(wizard_router)
+
+# ================================
+# END BUSINESS SETUP WIZARD  
+# ================================
