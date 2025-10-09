@@ -262,17 +262,21 @@ class EnhancedConversationalAI:
             logger.error(f"Intent classification failed: {e}")
             return "general_inquiry", 0.3
     
-    async def start_conversation(self, user_id: str, context: ConversationContext, 
-                                language: Optional[Language] = None) -> Dict[str, Any]:
+    async def start_conversation(self, user_id: str, context: str, 
+                                language: Optional[str] = None) -> Dict[str, Any]:
         """Start a new conversation session"""
         try:
             session_id = f"conv_{uuid.uuid4().hex[:12]}"
+            
+            # Convert string context to enum
+            context_enum = ConversationContext(context) if isinstance(context, str) else context
+            language_enum = Language(language) if language else Language.ENGLISH
             
             # Get or create user profile
             if user_id not in self.user_profiles:
                 self.user_profiles[user_id] = UserProfile(
                     user_id=user_id,
-                    preferred_language=language or Language.ENGLISH,
+                    preferred_language=language_enum,
                     communication_style="friendly",
                     interaction_history=[],
                     preferences={},
@@ -281,13 +285,13 @@ class EnhancedConversationalAI:
                 )
             
             user_profile = self.user_profiles[user_id]
-            session_language = language or user_profile.preferred_language
+            session_language = language_enum or user_profile.preferred_language
             
             # Create conversation session
             session = ConversationSession(
                 session_id=session_id,
                 user_id=user_id,
-                context=context,
+                context=context_enum,
                 messages=[],
                 started_at=datetime.now(timezone.utc),
                 last_activity=datetime.now(timezone.utc),
@@ -298,16 +302,16 @@ class EnhancedConversationalAI:
             self.conversations[session_id] = session
             
             # Generate welcome message based on context and language
-            welcome_message = await self._generate_welcome_message(context, session_language)
+            welcome_message = await self._generate_welcome_message(context_enum, session_language)
             
             return {
                 "success": True,
                 "session_id": session_id,
                 "user_id": user_id,
-                "context": context.value,
+                "context": context_enum.value,
                 "language": session_language.value,
                 "welcome_message": welcome_message,
-                "suggested_actions": await self._get_suggested_actions(context, session_language),
+                "suggested_actions": await self._get_suggested_actions(context_enum, session_language),
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
             
@@ -382,19 +386,22 @@ class EnhancedConversationalAI:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
-    async def generate_voice_response(self, text: str, language: Language, 
+    async def generate_voice_response(self, text: str, language: str, 
                                     voice_style: str = "friendly") -> Dict[str, Any]:
         """Generate voice synthesis for text response"""
         try:
+            # Convert string language to enum
+            language_enum = Language(language) if isinstance(language, str) else language
+            
             # In a real implementation, this would use a TTS service
             # For now, we'll simulate voice generation
             
-            voice_id = f"voice_{hash(text + language.value + voice_style)}"
+            voice_id = f"voice_{hash(text + language_enum.value + voice_style)}"
             
             # Simulate voice parameters
             voice_config = {
                 "text": text,
-                "language": language.value,
+                "language": language_enum.value,
                 "voice_style": voice_style,
                 "speed": 1.0,
                 "pitch": 1.0,
@@ -422,10 +429,14 @@ class EnhancedConversationalAI:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
-    async def translate_message(self, text: str, from_language: Language, 
-                              to_language: Language) -> Dict[str, Any]:
+    async def translate_message(self, text: str, from_language: str, 
+                              to_language: str) -> Dict[str, Any]:
         """Translate message between languages"""
         try:
+            # Convert string languages to enums
+            from_lang_enum = Language(from_language) if isinstance(from_language, str) else from_language
+            to_lang_enum = Language(to_language) if isinstance(to_language, str) else to_language
+            
             # Simple translation simulation - in production, use proper translation API
             translation_map = {
                 (Language.ENGLISH, Language.SPANISH): {
@@ -447,7 +458,7 @@ class EnhancedConversationalAI:
             }
             
             text_lower = text.lower()
-            translation_dict = translation_map.get((from_language, to_language), {})
+            translation_dict = translation_map.get((from_lang_enum, to_lang_enum), {})
             
             translated_text = text
             for english_word, translated_word in translation_dict.items():
@@ -457,8 +468,8 @@ class EnhancedConversationalAI:
                 "success": True,
                 "original_text": text,
                 "translated_text": translated_text,
-                "from_language": from_language.value,
-                "to_language": to_language.value,
+                "from_language": from_lang_enum.value,
+                "to_language": to_lang_enum.value,
                 "confidence": 0.8,
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
