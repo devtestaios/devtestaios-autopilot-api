@@ -2,19 +2,35 @@
 Budget Optimizer ML Model
 Real machine learning model for Meta ads budget optimization
 """
-import numpy as np
-import pandas as pd
+# Graceful ML imports
+try:
+    import numpy as np
+    import pandas as pd
+    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+    from sklearn.model_selection import train_test_split, cross_val_score
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+    from sklearn.preprocessing import StandardScaler
+    ML_AVAILABLE = True
+except ImportError:
+    # Fallback imports
+    np = None
+    pd = None
+    GradientBoostingRegressor = None
+    RandomForestRegressor = None
+    train_test_split = None
+    cross_val_score = None
+    mean_absolute_error = None
+    mean_squared_error = None
+    r2_score = None
+    StandardScaler = None
+    ML_AVAILABLE = False
+
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timedelta
 import logging
 import pickle
 import os
 from pathlib import Path
-
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.preprocessing import StandardScaler
 
 from app.ml.meta_data_collector import MetaDataCollector, CampaignPerformanceData
 from app.ml.feature_engineering import FeatureEngineer

@@ -2,19 +2,38 @@
 Lead Scoring ML Model
 AI-powered lead qualification across all platforms
 """
-import numpy as np
-import pandas as pd
+# Graceful ML imports
+try:
+    import numpy as np
+    import pandas as pd
+    from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+    from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+    from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, precision_recall_curve
+    from sklearn.preprocessing import StandardScaler, LabelEncoder
+    ML_AVAILABLE = True
+except ImportError:
+    # Fallback imports
+    np = None
+    pd = None
+    GradientBoostingClassifier = None
+    RandomForestClassifier = None
+    train_test_split = None
+    cross_val_score = None
+    GridSearchCV = None
+    classification_report = None
+    confusion_matrix = None
+    roc_auc_score = None
+    precision_recall_curve = None
+    StandardScaler = None
+    LabelEncoder = None
+    ML_AVAILABLE = False
+
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timedelta
 import logging
 import pickle
 import os
 from pathlib import Path
-
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import classification_report, roc_auc_score, precision_recall_curve
-from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
 

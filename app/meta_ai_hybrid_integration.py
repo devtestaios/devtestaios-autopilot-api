@@ -8,9 +8,20 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
-import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
+
+# Graceful ML imports - optional for core functionality
+try:
+    import numpy as np
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.preprocessing import StandardScaler
+    ML_AVAILABLE = True
+except ImportError:
+    # Fallback for basic operations without ML
+    np = None
+    RandomForestRegressor = None
+    StandardScaler = None
+    ML_AVAILABLE = False
+    logger.warning("ML dependencies not available - using basic fallback operations")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
