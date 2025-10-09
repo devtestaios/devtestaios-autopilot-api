@@ -15,6 +15,7 @@ sqlalchemy==2.0.36
 psutil==6.1.1
 redis==5.2.1
 requests==2.32.3
-numpy==1.26.4
-scikit-learn==1.5.1
-pandas==2.2.2
+# ML dependencies - will be added back after core deployment succeeds
+# numpy>=1.24.0,<2.0.0
+# scikit-learn>=1.3.0,<2.0.0
+# pandas>=2.0.0,<3.0.0
