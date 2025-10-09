@@ -172,6 +172,16 @@ except ImportError as e:
     PLATFORM_INTERCONNECT_AVAILABLE = False
     interconnect_router = None
 
+# Import Attribution Engine (NEW - AI-Powered Multi-Platform Attribution) ⭐ CORE VALUE PROP
+try:
+    from app.attribution_endpoints import router as attribution_router
+    ATTRIBUTION_AVAILABLE = True
+    logger.info("✅ Attribution Engine loaded - CORE COMPETITIVE ADVANTAGE")
+except ImportError as e:
+    logger.warning(f"Attribution Engine not available: {e}")
+    ATTRIBUTION_AVAILABLE = False
+    attribution_router = None
+
 # Import Google Ads Integration
 try:
     from app.google_ads_integration import get_google_ads_client, fetch_campaigns_from_google_ads, fetch_performance_from_google_ads
@@ -295,6 +305,13 @@ if PLATFORM_INTERCONNECT_AVAILABLE and interconnect_router:
     logger.info("Platform Interconnectivity system loaded successfully")
 else:
     logger.warning("Platform Interconnectivity system not available - skipping router inclusion")
+
+# Include Attribution Engine router (⭐ CORE VALUE PROPOSITION - COMPETITIVE ADVANTAGE)
+if ATTRIBUTION_AVAILABLE and attribution_router:
+    app.include_router(attribution_router)
+    logger.info("🎯 Attribution Engine loaded - AI-powered multi-platform attribution active")
+else:
+    logger.warning("Attribution Engine not available - skipping router inclusion")
 
 # ================================
 # GOOGLE ADS INTEGRATION ENDPOINTS
