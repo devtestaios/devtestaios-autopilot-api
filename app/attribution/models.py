@@ -101,7 +101,7 @@ class AttributionResult(BaseModel):
     )
 
     # Timestamp
-    analyzed_at: datetime = Field(default_factory=datetime.now)
+    analyzed_at: datetime = Field(default_factory=lambda: datetime.now())
 
     def get_platform_credit(self, platform: Platform) -> float:
         """Get attribution credit for a specific platform"""

@@ -54,7 +54,7 @@ class TrackEventRequest(BaseModel):
     user_id: str = Field(..., description="Unique user identifier (anonymized)")
     event_type: str = Field(..., description="Type of event (click, impression, etc.)")
     platform: str = Field(..., description="Platform (meta, google_ads, linkedin, etc.)")
-    timestamp: Optional[datetime] = Field(default_factory=datetime.now)
+    timestamp: Optional[datetime] = Field(default_factory=lambda: datetime.now())
 
     # Campaign info
     campaign_id: Optional[str] = None
@@ -85,7 +85,7 @@ class TrackConversionRequest(BaseModel):
     user_id: str = Field(..., description="User who converted")
     conversion_type: str = Field(..., description="purchase, lead, signup, etc.")
     revenue: float = Field(0.0, description="Revenue from conversion")
-    timestamp: Optional[datetime] = Field(default_factory=datetime.now)
+    timestamp: Optional[datetime] = Field(default_factory=lambda: datetime.now())
 
     # Attribution config
     attribution_window_days: int = Field(30, description="Days to look back")
