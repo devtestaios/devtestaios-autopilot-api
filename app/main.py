@@ -4837,3 +4837,14 @@ app.include_router(wizard_router)
 # ================================
 # END BUSINESS SETUP WIZARD  
 # ================================
+
+# ADMIN USER MANAGEMENT
+# ================================
+
+# Import admin user management
+from app.admin_user_management import router as admin_router
+app.include_router(admin_router)
+
+# ================================
+# END ADMIN USER MANAGEMENT  
+# ================================

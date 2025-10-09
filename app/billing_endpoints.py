@@ -1,6 +1,6 @@
 """
 Stripe Integration for PulseBridge.ai
-Backend payment processing endpoints
+Backend payment processing endpoints with billing bypass for internal users
 """
 
 from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
@@ -11,6 +11,13 @@ import os
 import json
 import logging
 from datetime import datetime, timedelta
+
+# Import billing bypass system
+from app.billing_bypass_system import (
+    BillingBypassManager,
+    check_billing_bypass_before_payment,
+    get_user_billing_status
+)
 
 # Configure Stripe
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
@@ -24,11 +31,13 @@ logger = logging.getLogger(__name__)
 class CreateCheckoutRequest(BaseModel):
     price_id: str
     company_id: str
+    user_email: Optional[str] = None  # Added for billing bypass check
     success_url: Optional[str] = None
     cancel_url: Optional[str] = None
 
 class CreatePortalRequest(BaseModel):
     company_id: str
+    user_email: Optional[str] = None  # Added for billing bypass check
     return_url: Optional[str] = None
 
 class SubscriptionStatusResponse(BaseModel):
@@ -38,6 +47,8 @@ class SubscriptionStatusResponse(BaseModel):
     subscription_tier: str
     trial_end: Optional[datetime]
     customer_id: Optional[str]
+    billing_bypass: Optional[bool] = False
+    bypass_reason: Optional[str] = None
 
 # Stripe Price IDs (set these in environment variables)
 PRICE_IDS = {
@@ -51,9 +62,30 @@ PRICE_IDS = {
 @router.post("/create-checkout-session")
 async def create_checkout_session(request: CreateCheckoutRequest):
     """
-    Create Stripe checkout session for subscription
+    Create Stripe checkout session for subscription with billing bypass support
     """
     try:
+        # Check for billing bypass first
+        if request.user_email:
+            bypass_check = check_billing_bypass_before_payment(
+                request.user_email, 
+                ["ml_suite", "financial_suite", "ai_suite", "hr_suite"]  # Default suites
+            )
+            
+            if bypass_check["bypass_billing"]:
+                logger.info(f"Billing bypassed for {request.user_email}: {bypass_check['reason']}")
+                
+                # Return success without creating Stripe session
+                return {
+                    "billing_bypass": True,
+                    "reason": bypass_check["reason"],
+                    "allowed_suites": bypass_check["allowed_suites"],
+                    "message": f"Access granted - {bypass_check['reason']}",
+                    "checkout_url": None,  # No Stripe checkout needed
+                    "session_id": f"bypass_{request.company_id}_{int(datetime.now().timestamp())}"
+                }
+
+        # Normal Stripe checkout flow for paying customers
         # Get company info from database (you'll need to implement this)
         company = await get_company_by_id(request.company_id)
         if not company:
@@ -63,7 +95,7 @@ async def create_checkout_session(request: CreateCheckoutRequest):
         customer_id = company.get('stripe_customer_id')
         if not customer_id:
             customer = stripe.Customer.create(
-                email=company.get('billing_email') or company.get('owner_email'),
+                email=company.get('billing_email') or company.get('owner_email') or request.user_email,
                 name=company.get('name'),
                 metadata={'company_id': request.company_id}
             )
@@ -84,13 +116,15 @@ async def create_checkout_session(request: CreateCheckoutRequest):
             success_url=request.success_url or f"https://pulsebridge.ai/dashboard/billing?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=request.cancel_url or "https://pulsebridge.ai/pricing",
             metadata={
-                'company_id': request.company_id
+                'company_id': request.company_id,
+                'user_email': request.user_email or ''
             },
             trial_period_days=15,  # 15-day trial
             allow_promotion_codes=True
         )
 
         return {
+            "billing_bypass": False,
             "checkout_url": checkout_session.url,
             "session_id": checkout_session.id
         }
@@ -291,6 +325,101 @@ async def handle_subscription_updated(subscription):
         })
     
     logger.info(f"Subscription updated for customer {customer_id}, new tier: {tier}")
+
+@router.get("/status/{user_email}")
+async def get_billing_status(user_email: str):
+    """
+    Get comprehensive billing status for user including bypass status
+    """
+    try:
+        # Get billing status from bypass system
+        billing_status = get_user_billing_status(user_email)
+        
+        if billing_status["billing_type"] == "bypass":
+            return {
+                "user_email": user_email,
+                "billing_type": "bypass",
+                "payment_required": False,
+                "bypass_reason": billing_status["reason"],
+                "suite_access": billing_status["suite_access"],
+                "limits": billing_status["limits"],
+                "expires_at": billing_status.get("expires_at"),
+                "message": f"Billing bypassed: {billing_status['reason']}"
+            }
+        
+        # For non-bypass users, check actual Stripe subscription
+        # This would integrate with your existing subscription checking logic
+        return {
+            "user_email": user_email,
+            "billing_type": "standard",
+            "payment_required": True,
+            "trial_status": "active",  # Check actual trial status
+            "message": "Standard billing applies"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting billing status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get billing status")
+
+@router.post("/bypass/add-test-user")
+async def add_test_user_bypass(user_email: str):
+    """
+    Add user email to billing bypass list (admin only)
+    """
+    try:
+        success = BillingBypassManager.add_test_user_email(user_email)
+        
+        if success:
+            return {
+                "message": f"User {user_email} added to billing bypass list",
+                "user_email": user_email,
+                "bypass_active": True
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to add user to bypass list")
+            
+    except Exception as e:
+        logger.error(f"Error adding test user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to add test user")
+
+@router.delete("/bypass/remove-test-user")
+async def remove_test_user_bypass(user_email: str):
+    """
+    Remove user email from billing bypass list (admin only)
+    """
+    try:
+        success = BillingBypassManager.remove_test_user_email(user_email)
+        
+        if success:
+            return {
+                "message": f"User {user_email} removed from billing bypass list",
+                "user_email": user_email,
+                "bypass_active": False
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to remove user from bypass list")
+            
+    except Exception as e:
+        logger.error(f"Error removing test user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to remove test user")
+
+@router.get("/bypass/test-users")
+async def list_test_users():
+    """
+    List all users with billing bypass (admin only)
+    """
+    try:
+        test_users = BillingBypassManager.get_test_user_emails()
+        
+        return {
+            "test_users": test_users,
+            "count": len(test_users),
+            "internal_domains": BillingBypassManager.INTERNAL_DOMAINS
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing test users: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list test users")
 
 async def handle_subscription_cancelled(subscription):
     """Handle subscription cancellation"""

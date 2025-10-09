@@ -1,6 +1,7 @@
 """
 Business Setup Wizard API Endpoints
 Industry-standard onboarding with modular pricing and conversion optimization
+Includes billing bypass for internal users and test accounts
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -15,6 +16,13 @@ from app.modular_pricing_engine import (
     CompanySize, 
     OnboardingProfile,
     PricingCalculation
+)
+
+# Import billing bypass system
+from app.billing_bypass_system import (
+    BillingBypassManager,
+    check_billing_bypass_before_payment,
+    get_user_billing_status
 )
 
 logger = logging.getLogger(__name__)
@@ -38,6 +46,7 @@ class SuiteSelectionRequest(BaseModel):
     selected_suites: List[str] = Field(..., min_items=0, max_items=4)
     company_size: str = Field(..., description="startup, small, medium, or enterprise")
     annual_billing: bool = Field(default=False)
+    user_email: Optional[str] = Field(None, description="User email for billing bypass check")
 
 class OnboardingStepTracking(BaseModel):
     step_name: str
@@ -176,9 +185,27 @@ async def get_suite_catalog() -> Dict[str, Any]:
 @router.post("/calculate-pricing")
 async def calculate_modular_pricing(pricing_request: SuiteSelectionRequest) -> Dict[str, Any]:
     """
-    Calculate real-time pricing based on suite selection
+    Calculate real-time pricing based on suite selection with billing bypass support
     """
     try:
+        # Check for billing bypass first
+        billing_bypass_info = None
+        if pricing_request.user_email:
+            bypass_check = check_billing_bypass_before_payment(
+                pricing_request.user_email, 
+                pricing_request.selected_suites
+            )
+            
+            if bypass_check["bypass_billing"]:
+                billing_bypass_info = {
+                    "bypass_active": True,
+                    "reason": bypass_check["reason"],
+                    "allowed_suites": bypass_check["allowed_suites"],
+                    "message": f"Billing bypassed: {bypass_check['reason']}"
+                }
+                
+                logger.info(f"Billing bypass active for {pricing_request.user_email}: {bypass_check['reason']}")
+        
         # Validate company size
         try:
             company_size = CompanySize(pricing_request.company_size.lower())
@@ -188,7 +215,7 @@ async def calculate_modular_pricing(pricing_request: SuiteSelectionRequest) -> D
                 detail=f"Invalid company size: {pricing_request.company_size}"
             )
         
-        # Calculate pricing
+        # Calculate pricing (even for bypass users to show value)
         pricing = pricing_engine.calculate_pricing(
             pricing_request.selected_suites,
             company_size,
@@ -206,8 +233,9 @@ async def calculate_modular_pricing(pricing_request: SuiteSelectionRequest) -> D
             pricing_request.selected_suites
         )
         
-        return {
+        response_data = {
             "success": True,
+            "billing_bypass": billing_bypass_info,
             "pricing": {
                 "base_platform_price": float(pricing.base_platform_price),
                 "suite_costs": {k: float(v) for k, v in pricing.suite_costs.items()},
@@ -238,6 +266,8 @@ async def calculate_modular_pricing(pricing_request: SuiteSelectionRequest) -> D
                 }
             }
         }
+        
+        return response_data
         
     except HTTPException:
         raise
