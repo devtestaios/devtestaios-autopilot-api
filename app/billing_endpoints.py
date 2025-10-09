@@ -364,73 +364,169 @@ async def get_billing_status(user_email: str):
         logger.error(f"Error getting billing status: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get billing status")
 
-@router.post("/bypass/add-test-user")
-async def add_test_user_bypass(
+@router.post("/bypass/add-external-test-user")
+async def add_external_test_user_bypass(
     user_email: str,
     admin: Dict[str, Any] = Depends(verify_admin_token)
 ):
     """
-    Add user email to billing bypass list. **Requires admin authentication**
+    Add external test user (third-party tester)
+    - Limited access: 2 suites only
+    - 30-day expiration
+    - 1,000 API calls/month
+    - **Requires admin authentication**
     """
-    logger.info(f"Admin {admin['email']} adding {user_email} to billing bypass")
+    logger.info(f"Admin {admin['email']} adding external test user {user_email}")
     try:
-        success = BillingBypassManager.add_test_user_email(user_email)
-        
+        success = BillingBypassManager.add_external_test_user_email(user_email)
+
         if success:
             return {
-                "message": f"User {user_email} added to billing bypass list",
+                "message": f"External test user {user_email} added (30-day trial)",
                 "user_email": user_email,
-                "bypass_active": True
+                "user_type": "external_test_user",
+                "bypass_active": True,
+                "access_level": "LIMITED",
+                "expires_in_days": 30,
+                "suite_access": ["ml_suite", "financial_suite"],
+                "limits": {
+                    "api_calls": "1,000/month",
+                    "storage": "1GB",
+                    "team_members": 3,
+                    "campaigns": 5
+                }
             }
         else:
-            raise HTTPException(status_code=500, detail="Failed to add user to bypass list")
-            
-    except Exception as e:
-        logger.error(f"Error adding test user: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to add test user")
+            raise HTTPException(status_code=500, detail="Failed to add external test user")
 
-@router.delete("/bypass/remove-test-user")
-async def remove_test_user_bypass(
+    except Exception as e:
+        logger.error(f"Error adding external test user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to add external test user")
+
+@router.post("/bypass/add-beta-tester")
+async def add_beta_tester_bypass(
     user_email: str,
     admin: Dict[str, Any] = Depends(verify_admin_token)
 ):
     """
-    Remove user email from billing bypass list. **Requires admin authentication**
+    Add beta tester (early access customer)
+    - Moderate access: 3 suites
+    - 90-day expiration
+    - 5,000 API calls/month
+    - Priority support
+    - **Requires admin authentication**
     """
-    logger.info(f"Admin {admin['email']} removing {user_email} from billing bypass")
+    logger.info(f"Admin {admin['email']} adding beta tester {user_email}")
     try:
-        success = BillingBypassManager.remove_test_user_email(user_email)
-        
+        success = BillingBypassManager.add_beta_tester_email(user_email)
+
         if success:
             return {
-                "message": f"User {user_email} removed from billing bypass list",
+                "message": f"Beta tester {user_email} added (90-day trial)",
+                "user_email": user_email,
+                "user_type": "beta_tester",
+                "bypass_active": True,
+                "access_level": "MODERATE",
+                "expires_in_days": 90,
+                "suite_access": ["ml_suite", "financial_suite", "ai_suite"],
+                "limits": {
+                    "api_calls": "5,000/month",
+                    "storage": "5GB",
+                    "team_members": 5,
+                    "campaigns": 20
+                },
+                "perks": [
+                    "Early access to new features",
+                    "Priority support",
+                    "Direct feedback channel"
+                ]
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to add beta tester")
+
+    except Exception as e:
+        logger.error(f"Error adding beta tester: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to add beta tester")
+
+@router.delete("/bypass/remove-external-test-user")
+async def remove_external_test_user_bypass(
+    user_email: str,
+    admin: Dict[str, Any] = Depends(verify_admin_token)
+):
+    """
+    Remove external test user from bypass list. **Requires admin authentication**
+    """
+    logger.info(f"Admin {admin['email']} removing external test user {user_email}")
+    try:
+        success = BillingBypassManager.remove_external_test_user_email(user_email)
+
+        if success:
+            return {
+                "message": f"External test user {user_email} removed",
                 "user_email": user_email,
                 "bypass_active": False
             }
         else:
-            raise HTTPException(status_code=500, detail="Failed to remove user from bypass list")
-            
-    except Exception as e:
-        logger.error(f"Error removing test user: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to remove test user")
+            raise HTTPException(status_code=500, detail="Failed to remove external test user")
 
-@router.get("/bypass/test-users")
-async def list_test_users(admin: Dict[str, Any] = Depends(verify_admin_token)):
+    except Exception as e:
+        logger.error(f"Error removing external test user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to remove external test user")
+
+@router.delete("/bypass/remove-beta-tester")
+async def remove_beta_tester_bypass(
+    user_email: str,
+    admin: Dict[str, Any] = Depends(verify_admin_token)
+):
     """
-    List all users with billing bypass. **Requires admin authentication**
+    Remove beta tester from bypass list. **Requires admin authentication**
+    """
+    logger.info(f"Admin {admin['email']} removing beta tester {user_email}")
+    try:
+        success = BillingBypassManager.remove_beta_tester_email(user_email)
+
+        if success:
+            return {
+                "message": f"Beta tester {user_email} removed",
+                "user_email": user_email,
+                "bypass_active": False
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to remove beta tester")
+
+    except Exception as e:
+        logger.error(f"Error removing beta tester: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to remove beta tester")
+
+@router.get("/bypass/all-users")
+async def list_all_bypass_users(admin: Dict[str, Any] = Depends(verify_admin_token)):
+    """
+    List all users with billing bypass (grouped by type). **Requires admin authentication**
     """
     try:
-        test_users = BillingBypassManager.get_test_user_emails()
-        
+        all_users = BillingBypassManager.get_all_bypass_emails()
+
         return {
-            "test_users": test_users,
-            "count": len(test_users),
-            "internal_domains": BillingBypassManager.INTERNAL_DOMAINS
+            "internal_domains": all_users["internal_domains"],
+            "external_test_users": {
+                "emails": all_users["external_test_users"],
+                "count": len(all_users["external_test_users"]),
+                "access_level": "LIMITED",
+                "expires_in": "30 days"
+            },
+            "beta_testers": {
+                "emails": all_users["beta_testers"],
+                "count": len(all_users["beta_testers"]),
+                "access_level": "MODERATE",
+                "expires_in": "90 days"
+            },
+            "partner_domains": all_users["partner_domains"],
+            "total_bypass_users": len(all_users["external_test_users"]) + len(all_users["beta_testers"])
         }
-        
+
     except Exception as e:
-        logger.error(f"Error listing test users: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to list test users")
+        logger.error(f"Error listing bypass users: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list bypass users")
 
 async def handle_subscription_cancelled(subscription):
     """Handle subscription cancellation"""

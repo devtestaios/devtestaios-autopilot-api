@@ -4,35 +4,43 @@ Automatically handles billing bypass for employees, test users, and internal acc
 """
 
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 import logging
 
 logger = logging.getLogger(__name__)
 
 class BillingBypassReason(str, Enum):
+    # PulseBridge Internal (Full Access, No Expiration)
     INTERNAL_EMPLOYEE = "internal_employee"
-    TEST_USER = "test_user"
-    BETA_TESTER = "beta_tester"
-    PARTNER_ACCOUNT = "partner_account"
     CONTRACTOR = "contractor"
     DEVELOPER_ACCOUNT = "developer_account"
+
+    # External Test Users (Limited Access, Has Expiration)
+    EXTERNAL_TEST_USER = "external_test_user"
+    BETA_TESTER = "beta_tester"
+    PARTNER_ACCOUNT = "partner_account"
+
+    # Special Cases
     ADMIN_OVERRIDE = "admin_override"
 
 class BillingBypassManager:
     """Manages billing bypass logic for internal and test users"""
     
-    # Email domains that automatically get internal status
+    # PulseBridge internal domains - FULL ACCESS, NO LIMITS
     INTERNAL_DOMAINS = [
         "pulsebridge.ai",
         "20n1.ai",
         "20n1digital.com"
     ]
-    
-    # Specific test user emails (can be managed via admin dashboard)
-    TEST_USER_EMAILS = set()
-    
-    # Partner domains that get special access
+
+    # External test user emails (third-party testers) - LIMITED ACCESS
+    EXTERNAL_TEST_USER_EMAILS = set()
+
+    # Beta tester emails (early access customers) - MODERATE ACCESS
+    BETA_TESTER_EMAILS = set()
+
+    # Partner domains (business partners) - SPECIAL ACCESS
     PARTNER_DOMAINS = [
         # Add partner domains here
     ]
@@ -42,62 +50,141 @@ class BillingBypassManager:
         """
         Determine if user should bypass billing based on email and user data
         Returns (should_bypass, reason)
+
+        Priority Order:
+        1. PulseBridge Internal Domains (HIGHEST ACCESS)
+        2. External Test User Emails (LIMITED ACCESS)
+        3. Beta Tester Emails (MODERATE ACCESS)
+        4. Partner Domains (SPECIAL ACCESS)
+        5. User Data Flags (VARIABLE ACCESS)
         """
         email_lower = email.lower()
-        
-        # Check internal domains
+
+        # PRIORITY 1: PulseBridge Internal Domains (Full Access, No Limits)
         for domain in cls.INTERNAL_DOMAINS:
             if email_lower.endswith(f"@{domain}"):
+                logger.info(f"Internal employee detected: {email}")
                 return True, BillingBypassReason.INTERNAL_EMPLOYEE
-        
-        # Check specific test user emails
-        if email_lower in cls.TEST_USER_EMAILS:
-            return True, BillingBypassReason.TEST_USER
-        
-        # Check partner domains
+
+        # PRIORITY 2: External Test User Emails (Limited Access, Expires)
+        if email_lower in cls.EXTERNAL_TEST_USER_EMAILS:
+            logger.info(f"External test user detected: {email}")
+            return True, BillingBypassReason.EXTERNAL_TEST_USER
+
+        # PRIORITY 3: Beta Tester Emails (Moderate Access, Expires)
+        if email_lower in cls.BETA_TESTER_EMAILS:
+            logger.info(f"Beta tester detected: {email}")
+            return True, BillingBypassReason.BETA_TESTER
+
+        # PRIORITY 4: Partner Domains (Special Access)
         for domain in cls.PARTNER_DOMAINS:
             if email_lower.endswith(f"@{domain}"):
+                logger.info(f"Partner account detected: {email}")
                 return True, BillingBypassReason.PARTNER_ACCOUNT
-        
-        # Check user data flags
+
+        # PRIORITY 5: User Data Flags (Check account_type from database)
         if user_data:
-            if user_data.get("account_type") in ["internal_employee", "test_user", "beta_tester"]:
-                return True, BillingBypassReason(user_data["account_type"])
-            
+            account_type = user_data.get("account_type")
+
+            if account_type == "internal_employee":
+                return True, BillingBypassReason.INTERNAL_EMPLOYEE
+            elif account_type == "contractor":
+                return True, BillingBypassReason.CONTRACTOR
+            elif account_type == "developer_account":
+                return True, BillingBypassReason.DEVELOPER_ACCOUNT
+            elif account_type == "external_test_user":
+                return True, BillingBypassReason.EXTERNAL_TEST_USER
+            elif account_type == "beta_tester":
+                return True, BillingBypassReason.BETA_TESTER
+
+            # Admin override flag
             if user_data.get("bypass_billing", False):
                 return True, BillingBypassReason.ADMIN_OVERRIDE
-        
+
         return False, None
     
     @classmethod
     def get_bypass_config(cls, email: str, reason: BillingBypassReason) -> Dict[str, Any]:
-        """Get billing bypass configuration for user"""
+        """
+        Get billing bypass configuration for user
+
+        Access Levels:
+        - INTERNAL: Full access, no limits, no expiration
+        - EXTERNAL_TEST: Limited access, expires in 30 days
+        - BETA: Moderate access, expires in 90 days
+        - PARTNER: Custom access based on partnership
+        """
         base_config = {
             "bypass_billing": True,
             "payment_required": False,
             "trial_bypass": True,
-            "unlimited_usage": True,
-            "billing_type": "internal",
             "created_at": datetime.now(timezone.utc),
             "reason": reason.value
         }
-        
-        if reason == BillingBypassReason.INTERNAL_EMPLOYEE:
+
+        # ===================================================================
+        # TIER 1: PULSEBRIDGE INTERNAL (Full Access, No Limits, No Expiration)
+        # ===================================================================
+        if reason in [BillingBypassReason.INTERNAL_EMPLOYEE, BillingBypassReason.CONTRACTOR, BillingBypassReason.DEVELOPER_ACCOUNT]:
             base_config.update({
+                "billing_type": "internal",
+                "unlimited_usage": True,
                 "suite_access": ["ml_suite", "financial_suite", "ai_suite", "hr_suite"],
                 "api_rate_limit": None,  # Unlimited
                 "storage_limit": None,   # Unlimited
                 "user_limit": None,      # Unlimited team members
-                "expires_at": None       # No expiration
+                "campaign_limit": None,  # Unlimited campaigns
+                "expires_at": None,      # No expiration
+                "priority_support": True,
+                "white_glove_onboarding": True,
+                "advanced_analytics": True,
+                "custom_integrations": True,
+                "access_level": "INTERNAL",
+                "description": "PulseBridge Internal User - Full Platform Access"
             })
-        
-        elif reason in [BillingBypassReason.TEST_USER, BillingBypassReason.BETA_TESTER]:
+
+        # ===================================================================
+        # TIER 2: EXTERNAL TEST USERS (Limited Access, 30 Day Expiration)
+        # ===================================================================
+        elif reason == BillingBypassReason.EXTERNAL_TEST_USER:
             base_config.update({
-                "suite_access": ["ml_suite", "financial_suite", "ai_suite", "hr_suite"],
-                "api_rate_limit": 10000,  # High but limited
-                "storage_limit": "10GB",  # Generous for testing
-                "user_limit": 10,         # Multiple team members for testing
-                "expires_at": datetime.now(timezone.utc).replace(year=2026)  # 1 year
+                "billing_type": "external_test",
+                "unlimited_usage": False,
+                "suite_access": ["ml_suite", "financial_suite"],  # Limited to 2 suites
+                "api_rate_limit": 1000,   # 1,000 API calls/month
+                "storage_limit": "1GB",   # 1GB storage
+                "user_limit": 3,          # Max 3 team members
+                "campaign_limit": 5,      # Max 5 campaigns
+                "expires_at": datetime.now(timezone.utc) + timedelta(days=30),  # 30 days
+                "priority_support": False,
+                "white_glove_onboarding": False,
+                "advanced_analytics": False,
+                "custom_integrations": False,
+                "access_level": "EXTERNAL_TEST",
+                "description": "External Test User - Limited 30-Day Trial",
+                "warning": "⚠️ Trial expires in 30 days. Contact sales for extended access."
+            })
+
+        # ===================================================================
+        # TIER 3: BETA TESTERS (Moderate Access, 90 Day Expiration)
+        # ===================================================================
+        elif reason == BillingBypassReason.BETA_TESTER:
+            base_config.update({
+                "billing_type": "beta_tester",
+                "unlimited_usage": False,
+                "suite_access": ["ml_suite", "financial_suite", "ai_suite"],  # 3 suites
+                "api_rate_limit": 5000,   # 5,000 API calls/month
+                "storage_limit": "5GB",   # 5GB storage
+                "user_limit": 5,          # Max 5 team members
+                "campaign_limit": 20,     # Max 20 campaigns
+                "expires_at": datetime.now(timezone.utc) + timedelta(days=90),  # 90 days
+                "priority_support": True,
+                "white_glove_onboarding": True,
+                "advanced_analytics": True,
+                "custom_integrations": False,
+                "access_level": "BETA",
+                "description": "Beta Tester - Extended Trial Access",
+                "perks": ["Early access to new features", "Direct feedback channel", "Beta community access"]
             })
         
         elif reason == BillingBypassReason.PARTNER_ACCOUNT:
@@ -112,31 +199,68 @@ class BillingBypassManager:
         return base_config
     
     @classmethod
-    def add_test_user_email(cls, email: str) -> bool:
-        """Add email to test user list"""
+    def add_external_test_user_email(cls, email: str) -> bool:
+        """Add email to external test user list (30-day limited access)"""
         try:
-            cls.TEST_USER_EMAILS.add(email.lower())
-            logger.info(f"Added test user email: {email}")
+            cls.EXTERNAL_TEST_USER_EMAILS.add(email.lower())
+            logger.info(f"Added external test user email: {email}")
             return True
         except Exception as e:
-            logger.error(f"Error adding test user email: {str(e)}")
+            logger.error(f"Error adding external test user email: {str(e)}")
             return False
-    
+
     @classmethod
-    def remove_test_user_email(cls, email: str) -> bool:
-        """Remove email from test user list"""
+    def remove_external_test_user_email(cls, email: str) -> bool:
+        """Remove email from external test user list"""
         try:
-            cls.TEST_USER_EMAILS.discard(email.lower())
-            logger.info(f"Removed test user email: {email}")
+            cls.EXTERNAL_TEST_USER_EMAILS.discard(email.lower())
+            logger.info(f"Removed external test user email: {email}")
             return True
         except Exception as e:
-            logger.error(f"Error removing test user email: {str(e)}")
+            logger.error(f"Error removing external test user email: {str(e)}")
             return False
-    
+
     @classmethod
-    def get_test_user_emails(cls) -> List[str]:
-        """Get list of all test user emails"""
-        return list(cls.TEST_USER_EMAILS)
+    def add_beta_tester_email(cls, email: str) -> bool:
+        """Add email to beta tester list (90-day moderate access)"""
+        try:
+            cls.BETA_TESTER_EMAILS.add(email.lower())
+            logger.info(f"Added beta tester email: {email}")
+            return True
+        except Exception as e:
+            logger.error(f"Error adding beta tester email: {str(e)}")
+            return False
+
+    @classmethod
+    def remove_beta_tester_email(cls, email: str) -> bool:
+        """Remove email from beta tester list"""
+        try:
+            cls.BETA_TESTER_EMAILS.discard(email.lower())
+            logger.info(f"Removed beta tester email: {email}")
+            return True
+        except Exception as e:
+            logger.error(f"Error removing beta tester email: {str(e)}")
+            return False
+
+    @classmethod
+    def get_external_test_user_emails(cls) -> List[str]:
+        """Get list of all external test user emails"""
+        return list(cls.EXTERNAL_TEST_USER_EMAILS)
+
+    @classmethod
+    def get_beta_tester_emails(cls) -> List[str]:
+        """Get list of all beta tester emails"""
+        return list(cls.BETA_TESTER_EMAILS)
+
+    @classmethod
+    def get_all_bypass_emails(cls) -> Dict[str, List[str]]:
+        """Get all bypass emails grouped by type"""
+        return {
+            "external_test_users": list(cls.EXTERNAL_TEST_USER_EMAILS),
+            "beta_testers": list(cls.BETA_TESTER_EMAILS),
+            "internal_domains": cls.INTERNAL_DOMAINS,
+            "partner_domains": cls.PARTNER_DOMAINS
+        }
     
     @classmethod
     def validate_suite_access(cls, user_email: str, requested_suites: List[str]) -> List[str]:
