@@ -44,6 +44,29 @@ except ImportError as e:
 from app.ai_endpoints import ai_router
 from app.ai_chat_service import ai_service, ChatRequest
 
+# Import ML and Predictive Analytics Services
+from app.ml_service_integration import MLServiceClient
+from app.predictive_analytics import PredictiveAnalytics
+
+# ML Service and Predictive Analytics Instances
+ml_service_instance = None
+predictive_analytics_instance = None
+
+async def get_ml_service():
+    """Get or create ML service instance"""
+    global ml_service_instance
+    if ml_service_instance is None:
+        ml_service_instance = MLServiceClient()
+    return ml_service_instance
+
+async def get_predictive_analytics():
+    """Get or create predictive analytics instance"""
+    global predictive_analytics_instance
+    if predictive_analytics_instance is None:
+        ml_service = await get_ml_service()
+        predictive_analytics_instance = PredictiveAnalytics(ml_service)
+    return predictive_analytics_instance
+
 # Import Optimization Engine
 from app.optimization_endpoints import router as optimization_router
 
@@ -112,6 +135,10 @@ except ImportError as e:
 
 # Import Meta Business API Integration - ✅ VALIDATED CREDENTIALS
 from app.meta_business_api import meta_api
+
+# Import ML and Predictive Analytics
+from app.ml_service_integration import get_ml_service
+from app.predictive_analytics import get_predictive_analytics
 
 # Import LinkedIn Ads Integration
 from app.linkedin_ads_integration import (
@@ -3872,6 +3899,174 @@ app.include_router(compliance_router)
 # Add compliance routes
 from app.api.compliance import router as compliance_router
 app.include_router(compliance_router)
+
+# ================================
+# PREDICTIVE ANALYTICS ENDPOINTS
+# ================================
+
+@app.get("/ml/status")
+async def ml_service_status():
+    """Check ML service availability"""
+    try:
+        ml_service = await get_ml_service()
+        is_available = await ml_service.is_available()
+        
+        return {
+            "ml_service_available": is_available,
+            "capabilities": [
+                "campaign_performance_prediction",
+                "budget_optimization", 
+                "anomaly_detection",
+                "lead_scoring"
+            ] if is_available else [],
+            "fallback_mode": not is_available,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"ML status check failed: {e}")
+        return {
+            "ml_service_available": False,
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+@app.post("/ml/predict/campaign-performance")
+async def predict_campaign_performance(request: Dict[str, Any]):
+    """Predict campaign performance using ML models"""
+    try:
+        campaign_id = request.get("campaign_id")
+        campaign_data = request.get("campaign_data", {})
+        forecast_days = request.get("forecast_days", 30)
+        
+        if not campaign_id or not campaign_data:
+            raise HTTPException(status_code=400, detail="campaign_id and campaign_data are required")
+        
+        predictive_analytics = await get_predictive_analytics()
+        result = await predictive_analytics.forecast_campaign_performance(
+            campaign_id=campaign_id,
+            campaign_data=campaign_data,
+            forecast_days=forecast_days
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Prediction failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Campaign prediction failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ml/optimize/budget-allocation")
+async def optimize_budget_allocation(request: Dict[str, Any]):
+    """Optimize budget allocation across campaigns using ML"""
+    try:
+        campaigns = request.get("campaigns", [])
+        total_budget = request.get("total_budget")
+        optimization_goal = request.get("optimization_goal", "roi")
+        constraints = request.get("constraints", {})
+        
+        if not campaigns or total_budget is None:
+            raise HTTPException(status_code=400, detail="campaigns and total_budget are required")
+        
+        predictive_analytics = await get_predictive_analytics()
+        result = await predictive_analytics.optimize_multi_platform_budget(
+            campaigns=campaigns,
+            total_budget=total_budget,
+            optimization_goal=optimization_goal,
+            constraints=constraints
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Optimization failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Budget optimization failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ml/analyze/anomaly-detection")
+async def detect_performance_anomalies(request: Dict[str, Any]):
+    """Detect anomalies in campaign performance metrics"""
+    try:
+        platform = request.get("platform")
+        metrics = request.get("metrics", [])
+        sensitivity = request.get("sensitivity", "medium")
+        
+        if not platform or not metrics:
+            raise HTTPException(status_code=400, detail="platform and metrics are required")
+        
+        predictive_analytics = await get_predictive_analytics()
+        result = await predictive_analytics.detect_performance_anomalies(
+            platform=platform,
+            metrics=metrics,
+            sensitivity=sensitivity
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Anomaly detection failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Anomaly detection failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ml/score/leads")
+async def score_leads(request: Dict[str, Any]):
+    """Score leads using ML models for conversion probability"""
+    try:
+        leads = request.get("leads", [])
+        
+        if not leads:
+            raise HTTPException(status_code=400, detail="leads data is required")
+        
+        predictive_analytics = await get_predictive_analytics()
+        result = await predictive_analytics.predict_lead_conversion_probability(leads=leads)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Lead scoring failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Lead scoring failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/ml/analyze/market-trends")
+async def analyze_market_trends(platform: str, industry: str, time_period: int = 90):
+    """Generate market trend analysis for platform/industry combination"""
+    try:
+        predictive_analytics = await get_predictive_analytics()
+        result = await predictive_analytics.generate_market_trend_analysis(
+            platform=platform,
+            industry=industry,
+            time_period=time_period
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Market analysis failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Market trend analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================================
+# END PREDICTIVE ANALYTICS
+# ================================
 
 # Add performance routes
 from app.api.performance import router as performance_router
