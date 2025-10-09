@@ -8,7 +8,9 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 import logging
+import uuid
 
 from app.attribution import (
     TouchpointEvent,
@@ -20,6 +22,8 @@ from app.attribution import (
     AttributionResult,
     Platform
 )
+from app.attribution.db_service import AttributionDatabaseService
+from app.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +32,6 @@ router = APIRouter(prefix="/api/v1/attribution", tags=["Attribution Engine"])
 # Global model instances
 _shapley_model = None
 _markov_model = None
-_journey_store: Dict[str, CustomerJourney] = {}  # In-memory for MVP (use DB in prod)
 
 
 def get_shapley_model() -> ShapleyAttributionModel:
@@ -124,7 +127,10 @@ class TrainMarkovRequest(BaseModel):
 # API Endpoints
 
 @router.post("/track/event")
-async def track_touchpoint(request: TrackEventRequest) -> Dict[str, Any]:
+async def track_touchpoint(
+    request: TrackEventRequest,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
     """
     Track a marketing touchpoint event
 
@@ -137,9 +143,11 @@ async def track_touchpoint(request: TrackEventRequest) -> Dict[str, Any]:
         User clicks email link → POST to this endpoint
     """
     try:
+        db_service = AttributionDatabaseService(db)
+
         # Convert request to TouchpointEvent
         event = TouchpointEvent(
-            event_id=f"{request.user_id}_{request.timestamp.timestamp()}",
+            event_id=f"{request.user_id}_{int(request.timestamp.timestamp())}_{uuid.uuid4().hex[:8]}",
             user_id=request.user_id,
             event_type=request.event_type,
             platform=Platform(request.platform),
@@ -159,12 +167,30 @@ async def track_touchpoint(request: TrackEventRequest) -> Dict[str, Any]:
             custom_data=request.custom_data
         )
 
-        # Store event (in production, save to database)
-        # For MVP, we'll build journeys on-the-fly from recent events
+        # Get or create journey for this user
+        journey = db_service.get_journey_for_user(request.user_id, active_only=True)
+        if not journey:
+            # Create new journey
+            journey_id = f"journey_{request.user_id}_{uuid.uuid4().hex[:12]}"
+            temp_journey = CustomerJourney(
+                journey_id=journey_id,
+                user_id=request.user_id,
+                touchpoints=[event],
+                conversion=None
+            )
+            db_service.create_or_update_journey(temp_journey)
+        else:
+            journey_id = journey.id
+
+        # Save touchpoint to database
+        db_service.save_touchpoint(event, journey_id)
+
+        logger.info(f"Tracked touchpoint {event.event_id} for user {request.user_id}")
 
         return {
             "status": "success",
             "event_id": event.event_id,
+            "journey_id": journey_id,
             "message": "Touchpoint tracked",
             "timestamp": event.timestamp.isoformat()
         }
@@ -177,7 +203,8 @@ async def track_touchpoint(request: TrackEventRequest) -> Dict[str, Any]:
 @router.post("/track/conversion")
 async def track_conversion(
     request: TrackConversionRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     Track a conversion and trigger attribution analysis
@@ -188,9 +215,11 @@ async def track_conversion(
     Automatically runs attribution in the background and stores results.
     """
     try:
+        db_service = AttributionDatabaseService(db)
+
         # Create conversion event
         conversion = ConversionEvent(
-            conversion_id=f"{request.user_id}_{request.timestamp.timestamp()}",
+            conversion_id=f"{request.user_id}_{int(request.timestamp.timestamp())}_{uuid.uuid4().hex[:8]}",
             user_id=request.user_id,
             conversion_type=request.conversion_type,
             timestamp=request.timestamp,
@@ -200,19 +229,41 @@ async def track_conversion(
             product_ids=request.product_ids
         )
 
-        # In production: save to database and trigger background job
-        # For MVP: return confirmation
+        # Get existing journey for this user
+        journey = db_service.get_journey_for_user(request.user_id, active_only=True)
+        if not journey:
+            # No journey exists - create one with just the conversion
+            logger.warning(f"No journey found for user {request.user_id}, creating conversion-only journey")
+            journey_id = f"journey_{request.user_id}_{uuid.uuid4().hex[:12]}"
+            temp_journey = CustomerJourney(
+                journey_id=journey_id,
+                user_id=request.user_id,
+                touchpoints=[],
+                conversion=conversion
+            )
+            db_service.create_or_update_journey(temp_journey)
+        else:
+            journey_id = journey.id
+            # Update journey to mark as converted
+            journey.converted = True
+            journey.conversion_id = conversion.conversion_id
 
-        # Queue attribution analysis
+        # Save conversion to database
+        db_service.save_conversion(conversion, journey_id)
+
+        # Queue attribution analysis in background
         background_tasks.add_task(
-            _analyze_user_journey,
-            request.user_id,
-            conversion
+            _analyze_and_save_attribution,
+            journey_id,
+            db
         )
+
+        logger.info(f"Tracked conversion {conversion.conversion_id} for user {request.user_id}")
 
         return {
             "status": "success",
             "conversion_id": conversion.conversion_id,
+            "journey_id": journey_id,
             "message": "Conversion tracked, attribution analysis queued",
             "revenue": conversion.revenue,
             "timestamp": conversion.timestamp.isoformat()
@@ -224,7 +275,10 @@ async def track_conversion(
 
 
 @router.post("/analyze/journey", response_model=AttributionResult)
-async def analyze_journey(request: AnalyzeJourneyRequest) -> AttributionResult:
+async def analyze_journey(
+    request: AnalyzeJourneyRequest,
+    db: Session = Depends(get_db)
+) -> AttributionResult:
     """
     Analyze attribution for a single customer journey
 
@@ -235,8 +289,23 @@ async def analyze_journey(request: AnalyzeJourneyRequest) -> AttributionResult:
     their customers came from.
     """
     try:
-        # In production: fetch touchpoints from database
-        # For MVP: return example result
+        db_service = AttributionDatabaseService(db)
+
+        # Get journey from database
+        db_journey = db_service.get_journey_for_user(request.user_id, active_only=False)
+        if not db_journey:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No journey found for user {request.user_id}"
+            )
+
+        # Build CustomerJourney from database
+        journey = db_service.build_journey_from_db(db_journey.id)
+        if not journey:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not build journey for user {request.user_id}"
+            )
 
         # Get attribution model
         if request.model_type == AttributionModelType.SHAPLEY:
@@ -249,12 +318,13 @@ async def analyze_journey(request: AnalyzeJourneyRequest) -> AttributionResult:
                 detail=f"Model type {request.model_type} not supported yet"
             )
 
-        # Build customer journey (in prod: from DB)
-        # For MVP: return mock result
-        journey = _get_or_create_mock_journey(request.user_id)
-
         # Calculate attribution
         result = model.calculate_attribution(journey)
+
+        # Save result to database
+        db_service.save_attribution_result(result, db_journey.id)
+
+        logger.info(f"Analyzed journey {db_journey.id} using {request.model_type.value}")
 
         return result
 
@@ -309,7 +379,8 @@ async def analyze_batch(request: BatchAnalysisRequest) -> Dict[str, Any]:
 @router.post("/train/markov")
 async def train_markov(
     request: TrainMarkovRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     Train Markov attribution model on historical data
@@ -320,13 +391,8 @@ async def train_markov(
     Should be run weekly or after collecting significant new data.
     """
     try:
-        model = get_markov_model()
-
-        # In production: fetch journeys from database
-        # For MVP: use sample data
-
         # Queue training job (can take minutes for large datasets)
-        background_tasks.add_task(_train_markov_background, request)
+        background_tasks.add_task(_train_markov_background, request, db)
 
         return {
             "status": "training_queued",
@@ -373,7 +439,6 @@ async def get_models_status() -> Dict[str, Any]:
                 "version": markov.model_version
             }
         },
-        "journeys_analyzed": len(_journey_store),
         "timestamp": datetime.now().isoformat()
     }
 
@@ -395,90 +460,77 @@ async def health_check() -> Dict[str, Any]:
 
 # Background tasks
 
-async def _analyze_user_journey(user_id: str, conversion: ConversionEvent):
-    """Background task to analyze journey after conversion"""
+async def _analyze_and_save_attribution(journey_id: str, db: Session):
+    """Background task to analyze journey and save attribution result"""
     try:
-        # Get journey (from DB in production)
-        journey = _get_or_create_mock_journey(user_id)
-        journey.conversion = conversion
-        journey.converted = True
+        db_service = AttributionDatabaseService(db)
+
+        # Build journey from database
+        journey = db_service.build_journey_from_db(journey_id)
+        if not journey:
+            logger.error(f"Could not build journey {journey_id} for attribution")
+            return
 
         # Analyze with Shapley model
         shapley = get_shapley_model()
         result = shapley.calculate_attribution(journey)
 
-        # Save result (to DB in production)
-        logger.info(f"Attribution complete for {user_id}: {result.insights}")
+        # Save result to database
+        db_service.save_attribution_result(result, journey_id)
+
+        logger.info(f"Attribution complete for journey {journey_id}: {result.insights}")
 
     except Exception as e:
-        logger.error(f"Error in background attribution: {e}")
+        logger.error(f"Error in background attribution for journey {journey_id}: {e}")
 
 
-async def _train_markov_background(request: TrainMarkovRequest):
+async def _train_markov_background(request: TrainMarkovRequest, db: Session):
     """Background task to train Markov model"""
     try:
+        db_service = AttributionDatabaseService(db)
         model = get_markov_model()
 
-        # Fetch journeys from database (in production)
-        # For MVP: use sample data
-        sample_journeys = [
-            _get_or_create_mock_journey(f"user_{i}")
-            for i in range(100)
-        ]
+        # Fetch converted journeys from database for training
+        db_journeys = db_service.get_recent_journeys(
+            limit=1000,
+            converted_only=True,
+            start_date=request.start_date,
+            end_date=request.end_date
+        )
+
+        # Build CustomerJourney objects
+        journeys = []
+        for db_journey in db_journeys:
+            journey = db_service.build_journey_from_db(db_journey.id)
+            if journey and len(journey.touchpoints) >= request.min_touchpoints:
+                journeys.append(journey)
+
+        if len(journeys) < 10:
+            logger.warning(f"Only {len(journeys)} journeys available for training, need at least 10")
+            return
 
         # Train model
-        model.train(sample_journeys)
+        model.train(journeys)
 
-        logger.info("Markov model training complete")
+        # Save model state to database
+        model_state = {
+            "transitions": dict(model.transitions),
+            "state_counts": dict(model.state_counts),
+            "conversion_probs": dict(model.conversion_probs)
+        }
+        db_service.save_model_state(
+            model_type="markov",
+            model_state=model_state,
+            training_journeys_count=len(journeys)
+        )
+
+        logger.info(f"Markov model training complete with {len(journeys)} journeys")
 
     except Exception as e:
         logger.error(f"Error training Markov model: {e}")
 
 
 # Helper functions
-
-def _get_or_create_mock_journey(user_id: str) -> CustomerJourney:
-    """Get or create a mock journey for testing (replace with DB in production)"""
-    if user_id in _journey_store:
-        return _journey_store[user_id]
-
-    # Create mock journey with multiple touchpoints
-    from datetime import datetime, timedelta
-    import random
-
-    now = datetime.now()
-    touchpoints = []
-
-    # Simulate a multi-touch journey
-    platforms = [Platform.META, Platform.GOOGLE_SEARCH, Platform.LINKEDIN]
-
-    for i, platform in enumerate(platforms):
-        touchpoint = TouchpointEvent(
-            event_id=f"{user_id}_touch_{i}",
-            user_id=user_id,
-            event_type="click",
-            platform=platform,
-            timestamp=now - timedelta(days=len(platforms) - i),
-            campaign_id=f"campaign_{platform.value}_{random.randint(1, 3)}",
-            campaign_name=f"{platform.value.title()} Campaign"
-        )
-        touchpoints.append(touchpoint)
-
-    # Random conversion
-    conversion = None
-    if random.random() > 0.5:
-        conversion = ConversionEvent(
-            conversion_id=f"{user_id}_conversion",
-            user_id=user_id,
-            conversion_type="purchase",
-            timestamp=now,
-            revenue=random.uniform(50, 500)
-        )
-
-    journey = CustomerJourney.from_touchpoints(user_id, touchpoints, conversion)
-    _journey_store[user_id] = journey
-
-    return journey
 
 
 def _aggregate_attribution_results(results: List[AttributionResult]) -> Dict[str, Any]:

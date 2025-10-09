@@ -230,6 +230,19 @@ async def lifespan(app: FastAPI):
     logger.info(f"AI Provider: {os.getenv('AI_PROVIDER', 'anthropic')}")
     logger.info(f"Claude API Key: {'✅ Configured' if os.getenv('ANTHROPIC_API_KEY') else '❌ Missing'}")
     logger.info(f"OpenAI API Key: {'✅ Configured' if os.getenv('OPENAI_API_KEY') else '❌ Missing'}")
+
+    # Initialize database tables
+    try:
+        from app.database import init_db
+        from app.attribution.db_models import (
+            AttributionTouchpoint, AttributionConversion, AttributionJourney,
+            AttributionResult, AttributionModelState, AttributionBatchJob
+        )
+        init_db()
+        logger.info("✅ Database tables initialized")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+
     yield
     logger.info("🔄 PulseBridge.ai Backend Shutting Down...")
 
