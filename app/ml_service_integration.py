@@ -220,13 +220,52 @@ class MLServiceClient:
         total_budget: float
     ) -> Dict[str, Any]:
         """Fallback budget optimization"""
-        # Equal distribution as fallback
-        budget_per_campaign = total_budget / len(campaigns) if campaigns else 0
+        if not campaigns:
+            return {
+                "success": False,
+                "error": "No campaigns provided for optimization",
+                "optimized_budgets": {},
+                "expected_improvement": 0.0,
+                "confidence": 0.0,
+                "fallback": True,
+                "timestamp": datetime.now().isoformat()
+            }
         
+        # Calculate budget allocation based on performance
         optimized_budgets = {}
+        total_performance_score = 0.0
+        campaign_scores = {}
+        
+        # Calculate performance scores for each campaign
         for campaign in campaigns:
             campaign_id = campaign.get("id", "unknown")
-            optimized_budgets[campaign_id] = budget_per_campaign
+            metrics = campaign.get("performance_metrics", {})
+            
+            # Calculate a simple performance score
+            conversions = metrics.get("conversions", 0)
+            cost_per_conversion = metrics.get("cost_per_conversion", float('inf'))
+            
+            # Higher conversions and lower cost per conversion = better score
+            if cost_per_conversion == 0 or cost_per_conversion == float('inf'):
+                score = conversions * 0.1  # Low score for campaigns with no cost data
+            else:
+                score = conversions / cost_per_conversion * 1000  # Normalize score
+            
+            campaign_scores[campaign_id] = max(score, 0.1)  # Minimum score
+            total_performance_score += campaign_scores[campaign_id]
+        
+        # Allocate budget proportionally to performance scores
+        if total_performance_score == 0:
+            # Equal distribution as final fallback
+            budget_per_campaign = total_budget / len(campaigns)
+            for campaign in campaigns:
+                campaign_id = campaign.get("id", "unknown")
+                optimized_budgets[campaign_id] = budget_per_campaign
+        else:
+            for campaign in campaigns:
+                campaign_id = campaign.get("id", "unknown")
+                proportion = campaign_scores[campaign_id] / total_performance_score
+                optimized_budgets[campaign_id] = total_budget * proportion
         
         return {
             "success": True,
