@@ -16,6 +16,11 @@ from app.optimization.bid_optimizer import (
     BidRecommendation,
     PerformanceSnapshot
 )
+from app.optimization.platform_executors import (
+    MetaAdsExecutor,
+    GoogleAdsExecutor,
+    PlatformExecutorFactory
+)
 
 __all__ = [
     # Budget Optimization
@@ -29,4 +34,8 @@ __all__ = [
     "BidContext",
     "BidRecommendation",
     "PerformanceSnapshot",
+    # Platform Executors
+    "MetaAdsExecutor",
+    "GoogleAdsExecutor",
+    "PlatformExecutorFactory",
 ]
