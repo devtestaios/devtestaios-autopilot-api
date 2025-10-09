@@ -48,9 +48,15 @@ from app.ai_chat_service import ai_service, ChatRequest
 from app.ml_service_integration import MLServiceClient
 from app.predictive_analytics import PredictiveAnalytics
 
+# Import Financial Suite Services
+from app.financial_suite import FinancialSuite
+from app.invoice_billing_system import InvoicingSystem
+
 # ML Service and Predictive Analytics Instances
 ml_service_instance = None
 predictive_analytics_instance = None
+financial_suite_instance = None
+invoicing_system_instance = None
 
 async def get_ml_service():
     """Get or create ML service instance"""
@@ -66,6 +72,20 @@ async def get_predictive_analytics():
         ml_service = await get_ml_service()
         predictive_analytics_instance = PredictiveAnalytics(ml_service)
     return predictive_analytics_instance
+
+async def get_financial_suite():
+    """Get or create financial suite instance"""
+    global financial_suite_instance
+    if financial_suite_instance is None:
+        financial_suite_instance = FinancialSuite()
+    return financial_suite_instance
+
+async def get_invoicing_system():
+    """Get or create invoicing system instance"""
+    global invoicing_system_instance
+    if invoicing_system_instance is None:
+        invoicing_system_instance = InvoicingSystem()
+    return invoicing_system_instance
 
 # Import Optimization Engine
 from app.optimization_endpoints import router as optimization_router
@@ -3899,6 +3919,241 @@ app.include_router(compliance_router)
 # Add compliance routes
 from app.api.compliance import router as compliance_router
 app.include_router(compliance_router)
+
+# ================================
+# FINANCIAL SUITE ENDPOINTS
+# ================================
+
+@app.post("/finance/budget/create")
+async def create_budget(request: Dict[str, Any]):
+    """Create a new budget allocation"""
+    try:
+        financial_suite = await get_financial_suite()
+        result = await financial_suite.create_budget(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Budget creation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Budget creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/finance/expense/track")
+async def track_expense(request: Dict[str, Any]):
+    """Track a new expense and update budget allocations"""
+    try:
+        financial_suite = await get_financial_suite()
+        result = await financial_suite.track_expense(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Expense tracking failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Expense tracking failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/finance/revenue/track")
+async def track_revenue(request: Dict[str, Any]):
+    """Track revenue and update financial metrics"""
+    try:
+        financial_suite = await get_financial_suite()
+        result = await financial_suite.track_revenue(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Revenue tracking failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Revenue tracking failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/finance/roi/calculate")
+async def calculate_roi_metrics(request: Dict[str, Any]):
+    """Calculate comprehensive ROI metrics for specified period"""
+    try:
+        period_start = request.get("period_start")
+        period_end = request.get("period_end")
+        platform = request.get("platform")
+        
+        if not period_start or not period_end:
+            raise HTTPException(status_code=400, detail="period_start and period_end are required")
+        
+        financial_suite = await get_financial_suite()
+        result = await financial_suite.calculate_roi_metrics(period_start, period_end, platform)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "ROI calculation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ROI calculation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/finance/forecast/generate")
+async def generate_financial_forecast(request: Dict[str, Any]):
+    """Generate financial forecasts based on historical data"""
+    try:
+        financial_suite = await get_financial_suite()
+        result = await financial_suite.generate_financial_forecast(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Forecast generation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Financial forecast failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/finance/budget/status")
+async def get_budget_status(budget_id: Optional[str] = None):
+    """Get current budget status and utilization"""
+    try:
+        financial_suite = await get_financial_suite()
+        result = await financial_suite.get_budget_status(budget_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Budget status retrieval failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Budget status retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================================
+# INVOICING & BILLING ENDPOINTS
+# ================================
+
+@app.post("/billing/invoice/create")
+async def create_invoice(request: Dict[str, Any]):
+    """Create a new invoice"""
+    try:
+        invoicing_system = await get_invoicing_system()
+        result = await invoicing_system.create_invoice(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Invoice creation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Invoice creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/billing/invoice/{invoice_id}/send")
+async def send_invoice(invoice_id: str):
+    """Send invoice to client"""
+    try:
+        invoicing_system = await get_invoicing_system()
+        result = await invoicing_system.send_invoice(invoice_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Invoice sending failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Invoice sending failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/billing/payment/record")
+async def record_payment(request: Dict[str, Any]):
+    """Record a payment against an invoice"""
+    try:
+        invoicing_system = await get_invoicing_system()
+        result = await invoicing_system.record_payment(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Payment recording failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Payment recording failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/billing/recurring/setup")
+async def setup_recurring_billing(request: Dict[str, Any]):
+    """Setup recurring billing for a client"""
+    try:
+        invoicing_system = await get_invoicing_system()
+        result = await invoicing_system.setup_recurring_billing(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get("error", "Recurring billing setup failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Recurring billing setup failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/billing/report/generate")
+async def generate_financial_report(request: Dict[str, Any]):
+    """Generate comprehensive financial reports"""
+    try:
+        invoicing_system = await get_invoicing_system()
+        result = await invoicing_system.generate_financial_report(request)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Report generation failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Financial report generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/billing/overdue/check")
+async def check_overdue_invoices():
+    """Check for overdue invoices and update status"""
+    try:
+        invoicing_system = await get_invoicing_system()
+        result = await invoicing_system.check_overdue_invoices()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Overdue check failed"))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Overdue invoice check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================================
+# END FINANCIAL SUITE
+# ================================
 
 # ================================
 # PREDICTIVE ANALYTICS ENDPOINTS
