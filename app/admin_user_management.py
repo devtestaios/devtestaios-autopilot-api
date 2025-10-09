@@ -15,6 +15,9 @@ from app.models import User
 from app.database import get_db
 from sqlalchemy.orm import Session
 
+# Import authentication
+from app.auth import verify_admin_token, verify_admin_api_key
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -234,12 +237,16 @@ class InternalUserManager:
 async def create_internal_user(
     user_data: CreateInternalUserRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: Dict[str, Any] = Depends(verify_admin_token)
 ):
     """
     Create internal user (employee, contractor, test user)
     Automatically bypasses billing and grants appropriate suite access
+
+    **Requires admin authentication via Bearer token**
     """
+    logger.info(f"Admin {admin['email']} creating internal user {user_data.email}")
     try:
         # Check if user already exists
         existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -288,6 +295,7 @@ async def list_internal_users(
     role: Optional[UserRole] = None,
     department: Optional[str] = None,
     is_active: Optional[bool] = None,
+    admin: Dict[str, Any] = Depends(verify_admin_token),
     db: Session = Depends(get_db)
 ):
     """List all internal users with optional filtering"""
@@ -330,9 +338,11 @@ async def list_internal_users(
 async def update_internal_user(
     user_id: str,
     update_data: UpdateInternalUserRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: Dict[str, Any] = Depends(verify_admin_token)
 ):
-    """Update internal user details and permissions"""
+    """Update internal user details and permissions. **Requires admin authentication**"""
+    logger.info(f"Admin {admin['email']} updating user {user_id}")
     try:
         user = db.query(User).filter(
             User.id == user_id,
@@ -383,9 +393,11 @@ async def update_internal_user(
 async def deactivate_internal_user(
     user_id: str,
     permanent: bool = False,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: Dict[str, Any] = Depends(verify_admin_token)
 ):
-    """Deactivate or permanently delete internal user"""
+    """Deactivate or permanently delete internal user. **Requires admin authentication**"""
+    logger.info(f"Admin {admin['email']} deactivating user {user_id} (permanent={permanent})")
     try:
         user = db.query(User).filter(
             User.id == user_id,
@@ -413,9 +425,11 @@ async def deactivate_internal_user(
 @router.post("/users/bulk-operation")
 async def bulk_user_operation(
     operation: BulkUserOperation,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: Dict[str, Any] = Depends(verify_admin_token)
 ):
-    """Perform bulk operations on internal users"""
+    """Perform bulk operations on internal users. **Requires admin authentication**"""
+    logger.info(f"Admin {admin['email']} performing bulk operation: {operation.operation}")
     try:
         users = db.query(User).filter(
             User.id.in_(operation.user_ids),
@@ -463,12 +477,14 @@ async def create_test_account(
     full_name: str,
     test_duration_days: int = 30,
     suite_access: List[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: Dict[str, Any] = Depends(verify_admin_token)
 ):
     """
-    Quick test account creation
-    Perfect for onboarding new test users or beta testers
+    Quick test account creation. Perfect for onboarding new test users or beta testers.
+    **Requires admin authentication**
     """
+    logger.info(f"Admin {admin['email']} creating test account for {email}")
     try:
         if suite_access is None:
             suite_access = ["ml_suite", "financial_suite", "ai_suite", "hr_suite"]

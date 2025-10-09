@@ -3,7 +3,7 @@ Stripe Integration for PulseBridge.ai
 Backend payment processing endpoints with billing bypass for internal users
 """
 
-from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, Depends
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import stripe
@@ -18,6 +18,9 @@ from app.billing_bypass_system import (
     check_billing_bypass_before_payment,
     get_user_billing_status
 )
+
+# Import authentication
+from app.auth import verify_admin_token
 
 # Configure Stripe
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
@@ -362,10 +365,14 @@ async def get_billing_status(user_email: str):
         raise HTTPException(status_code=500, detail="Failed to get billing status")
 
 @router.post("/bypass/add-test-user")
-async def add_test_user_bypass(user_email: str):
+async def add_test_user_bypass(
+    user_email: str,
+    admin: Dict[str, Any] = Depends(verify_admin_token)
+):
     """
-    Add user email to billing bypass list (admin only)
+    Add user email to billing bypass list. **Requires admin authentication**
     """
+    logger.info(f"Admin {admin['email']} adding {user_email} to billing bypass")
     try:
         success = BillingBypassManager.add_test_user_email(user_email)
         
@@ -383,10 +390,14 @@ async def add_test_user_bypass(user_email: str):
         raise HTTPException(status_code=500, detail="Failed to add test user")
 
 @router.delete("/bypass/remove-test-user")
-async def remove_test_user_bypass(user_email: str):
+async def remove_test_user_bypass(
+    user_email: str,
+    admin: Dict[str, Any] = Depends(verify_admin_token)
+):
     """
-    Remove user email from billing bypass list (admin only)
+    Remove user email from billing bypass list. **Requires admin authentication**
     """
+    logger.info(f"Admin {admin['email']} removing {user_email} from billing bypass")
     try:
         success = BillingBypassManager.remove_test_user_email(user_email)
         
@@ -404,9 +415,9 @@ async def remove_test_user_bypass(user_email: str):
         raise HTTPException(status_code=500, detail="Failed to remove test user")
 
 @router.get("/bypass/test-users")
-async def list_test_users():
+async def list_test_users(admin: Dict[str, Any] = Depends(verify_admin_token)):
     """
-    List all users with billing bypass (admin only)
+    List all users with billing bypass. **Requires admin authentication**
     """
     try:
         test_users = BillingBypassManager.get_test_user_emails()

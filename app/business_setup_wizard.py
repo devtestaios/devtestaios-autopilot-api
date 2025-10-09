@@ -33,8 +33,20 @@ pricing_engine = ModularPricingEngine()
 
 # Pydantic Models
 class CompanyProfileRequest(BaseModel):
-    company_name: str = Field(..., min_length=2, max_length=100)
-    industry: str = Field(..., min_length=2, max_length=50)
+    company_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+        pattern=r"^[a-zA-Z0-9\s\-\.&',]+$",  # Alphanumeric + common business chars
+        description="Company name (alphanumeric, spaces, and common punctuation only)"
+    )
+    industry: str = Field(
+        ...,
+        min_length=2,
+        max_length=50,
+        pattern=r"^[a-zA-Z\s\-_]+$",  # Letters, spaces, hyphens, underscores
+        description="Industry (letters only)"
+    )
     company_size: str = Field(..., description="startup, small, medium, or enterprise")
     employees_count: Optional[int] = Field(None, ge=1, le=10000)
     primary_challenges: List[str] = Field(default_factory=list, max_items=5)
@@ -807,10 +819,9 @@ async def complete_demo_experience(
         raise HTTPException(status_code=500, detail="Demo completion failed")
 
 # Helper Functions
-def generate_personalized_demo(profile: CompanyProfileRequest, suite: str, demo_type: str) -> Dict[str, Any]:# Helper Functions
 def generate_personalized_demo(
     profile: CompanyProfileRequest,
-    suite: str, 
+    suite: str,
     demo_type: str
 ) -> Dict[str, Any]:
     """Generate personalized demo content based on company profile"""

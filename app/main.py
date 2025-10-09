@@ -4845,6 +4845,10 @@ app.include_router(wizard_router)
 from app.admin_user_management import router as admin_router
 app.include_router(admin_router)
 
+# Import admin login/authentication
+from app.admin_login import router as auth_router
+app.include_router(auth_router)
+
 # ================================
-# END ADMIN USER MANAGEMENT  
+# END ADMIN USER MANAGEMENT
 # ================================
