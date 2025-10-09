@@ -134,7 +134,13 @@ from app.autonomous_decision_endpoints import router as autonomous_router
 from app.hybrid_ai_endpoints import router as hybrid_ai_router
 
 # Import Billing System
-from app.billing_endpoints import router as billing_router
+try:
+    from app.billing_endpoints import router as billing_router
+    BILLING_AVAILABLE = True
+except Exception as e:
+    logger.error(f"Failed to import billing endpoints: {e}")
+    BILLING_AVAILABLE = False
+    billing_router = None
 
 # Import ML Optimization System (NEW - Real ML Budget Optimizer)
 try:
@@ -289,7 +295,11 @@ app.include_router(autonomous_router)
 app.include_router(hybrid_ai_router)
 
 # Include Billing System router (REVENUE ENGINE)
-app.include_router(billing_router)
+if BILLING_AVAILABLE and billing_router:
+    app.include_router(billing_router)
+    logger.info("✓ Billing system loaded successfully")
+else:
+    logger.warning("Billing system not available - skipping")
 
 # Include ML Optimization System router (REAL AI)
 if ML_OPTIMIZATION_AVAILABLE and ml_router:
