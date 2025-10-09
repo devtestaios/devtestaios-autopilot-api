@@ -685,9 +685,9 @@ async def get_conversion_analytics() -> Dict[str, Any]:
             }
         }
         
-        except Exception as e:
-            logger.error(f"Analytics retrieval failed: {e}")
-            raise HTTPException(status_code=500, detail="Analytics retrieval failed")
+    except Exception as e:
+        logger.error(f"Analytics retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail="Analytics retrieval failed")
 
 @router.post("/complete-demo-experience")
 async def complete_demo_experience(
