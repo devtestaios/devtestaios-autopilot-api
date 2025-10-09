@@ -15,6 +15,7 @@ from app.attribution.event_schema import (
 )
 from app.attribution.models import (
     AttributionModel,
+    AttributionModelType,
     AttributionResult,
     PlatformAttribution,
     CampaignAttribution
@@ -35,6 +36,7 @@ __all__ = [
     "SaaSJourney",
     # Models
     "AttributionModel",
+    "AttributionModelType",
     "AttributionResult",
     "PlatformAttribution",
     "CampaignAttribution",
