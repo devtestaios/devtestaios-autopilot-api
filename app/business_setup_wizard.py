@@ -41,6 +41,7 @@ class CompanyProfileRequest(BaseModel):
     current_tools: List[str] = Field(default_factory=list, max_items=10)
     goals: List[str] = Field(default_factory=list, max_items=5)
     estimated_monthly_spend: Optional[float] = Field(None, ge=0, le=50000)
+    user_email: Optional[str] = Field(None, description="User email for demo mode detection")
 
 class SuiteSelectionRequest(BaseModel):
     selected_suites: List[str] = Field(..., min_items=0, max_items=4)
@@ -72,8 +73,36 @@ async def create_company_profile(
 ) -> Dict[str, Any]:
     """
     Step 2: Company Discovery - Collect company information and generate recommendations
+    Enhanced with demo mode for authorized users
     """
     try:
+        # Check for demo mode (billing bypass users)
+        demo_mode_info = None
+        is_demo_user = False
+        
+        if profile_request.user_email:
+            bypass_check = check_billing_bypass_before_payment(
+                profile_request.user_email, 
+                ["ml_suite", "financial_suite", "ai_suite", "hr_suite"]
+            )
+            
+            if bypass_check["bypass_billing"]:
+                is_demo_user = True
+                demo_mode_info = {
+                    "demo_mode": True,
+                    "demo_user_type": bypass_check["reason"],
+                    "full_access": True,
+                    "message": "Welcome! You have full access to explore all PulseBridge features.",
+                    "special_features": [
+                        "Complete suite access",
+                        "Advanced analytics preview",
+                        "Priority feature demos",
+                        "White-glove onboarding experience"
+                    ]
+                }
+                
+                logger.info(f"Demo mode activated for {profile_request.user_email}: {bypass_check['reason']}")
+        
         # Validate company size
         try:
             company_size = CompanySize(profile_request.company_size.lower())
@@ -95,14 +124,32 @@ async def create_company_profile(
             estimated_monthly_spend=profile_request.estimated_monthly_spend
         )
         
-        # Generate smart recommendations
-        recommended_suites = pricing_engine.get_smart_recommendations(profile)
+        # Generate smart recommendations (enhanced for demo users)
+        if is_demo_user:
+            # Demo users get all suites recommended for full experience
+            recommended_suites = ["ml_suite", "financial_suite", "ai_suite", "hr_suite"]
+        else:
+            recommended_suites = pricing_engine.get_smart_recommendations(profile)
         
         # Calculate pricing for recommendations
         pricing = pricing_engine.calculate_pricing(recommended_suites, company_size)
         
-        # Generate ROI analysis
+        # Generate ROI analysis (enhanced for demo users)
         roi_analysis = pricing_engine.get_roi_analysis(recommended_suites, company_size)
+        
+        # Add demo-specific ROI insights
+        if is_demo_user:
+            roi_analysis["demo_insights"] = {
+                "potential_savings": "Up to $50,000+ annually in operational efficiency",
+                "time_savings": "15-25 hours per week in automated workflows",
+                "revenue_impact": "25-40% improvement in lead conversion rates",
+                "demo_scenarios": [
+                    "ML Suite: Predictive analytics for customer churn prevention",
+                    "Financial Suite: Automated invoice processing and cash flow forecasting", 
+                    "AI Suite: Intelligent lead scoring and personalized campaigns",
+                    "HR Suite: Automated recruitment and performance analytics"
+                ]
+            }
         
         # Create session ID for tracking
         session_id = str(uuid.uuid4())
@@ -110,7 +157,9 @@ async def create_company_profile(
             "profile": profile,
             "recommended_suites": recommended_suites,
             "created_at": datetime.now(timezone.utc),
-            "current_step": "company_profile_complete"
+            "current_step": "company_profile_complete",
+            "demo_mode": is_demo_user,
+            "user_email": profile_request.user_email
         }
         
         # Background task for analytics
@@ -118,12 +167,13 @@ async def create_company_profile(
             track_onboarding_step,
             "company_profile_complete",
             session_id,
-            {"company_size": company_size.value, "industry": profile.industry}
+            {"company_size": company_size.value, "industry": profile.industry, "demo_mode": is_demo_user}
         )
         
-        return {
+        response_data = {
             "success": True,
             "session_id": session_id,
+            "demo_mode_info": demo_mode_info,
             "company_profile": {
                 "company_name": profile.company_name,
                 "industry": profile.industry,
@@ -140,6 +190,22 @@ async def create_company_profile(
             "roi_analysis": roi_analysis,
             "next_step": "suite_demo"
         }
+        
+        # Add demo-specific next steps and guidance
+        if is_demo_user:
+            response_data["demo_guidance"] = {
+                "welcome_message": f"Welcome to your personalized PulseBridge demo experience!",
+                "next_actions": [
+                    "Explore all 4 business suites with full access",
+                    "Experience AI-powered automation workflows",
+                    "Test real-time analytics and reporting",
+                    "Configure your personalized dashboard"
+                ],
+                "demo_duration": "Unlimited access during evaluation period",
+                "support_contact": "Your dedicated success manager will reach out within 24 hours"
+            }
+        
+        return response_data
         
     except HTTPException:
         raise
@@ -328,6 +394,188 @@ async def request_suite_demo(
         logger.error(f"Demo request failed: {e}")
         raise HTTPException(status_code=500, detail="Demo generation failed")
 
+@router.post("/interactive-demo-experience")
+async def create_interactive_demo_experience(
+    session_id: str,
+    selected_suites: List[str],
+    user_email: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Enhanced demo experience for authorized users with full feature access
+    """
+    try:
+        # Check if user is authorized for enhanced demo
+        is_authorized_user = False
+        demo_privileges = {}
+        
+        if user_email:
+            bypass_check = check_billing_bypass_before_payment(user_email, selected_suites)
+            
+            if bypass_check["bypass_billing"]:
+                is_authorized_user = True
+                demo_privileges = {
+                    "full_feature_access": True,
+                    "live_data_access": True,
+                    "advanced_analytics": True,
+                    "white_glove_support": True,
+                    "custom_configurations": True,
+                    "priority_demos": True
+                }
+        
+        # Get session data
+        session_data = onboarding_sessions.get(session_id)
+        if not session_data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Generate enhanced demo experience
+        demo_experience = {
+            "session_id": session_id,
+            "demo_type": "interactive_full_access" if is_authorized_user else "standard_demo",
+            "authorized_user": is_authorized_user,
+            "demo_privileges": demo_privileges,
+            "available_suites": selected_suites,
+            "interactive_modules": []
+        }
+        
+        # Generate interactive modules for each selected suite
+        for suite in selected_suites:
+            if suite == "ml_suite":
+                module = {
+                    "suite_name": "ML & Predictive Analytics",
+                    "interactive_features": [
+                        {
+                            "name": "Customer Churn Prediction",
+                            "description": "AI-powered analysis of customer behavior patterns",
+                            "demo_data": "Live customer dataset with 94% accuracy prediction" if is_authorized_user else "Sample dataset preview",
+                            "interaction_type": "live_dashboard" if is_authorized_user else "video_walkthrough"
+                        },
+                        {
+                            "name": "Revenue Forecasting",
+                            "description": "Machine learning models for sales projection",
+                            "demo_data": "Real-time revenue models" if is_authorized_user else "Static forecast examples",
+                            "interaction_type": "configurable_model" if is_authorized_user else "demo_screenshots"
+                        },
+                        {
+                            "name": "Automated Lead Scoring",
+                            "description": "AI-driven qualification of prospects",
+                            "demo_data": "Live lead pipeline analysis" if is_authorized_user else "Example lead scores",
+                            "interaction_type": "interactive_scoring" if is_authorized_user else "example_walkthrough"
+                        }
+                    ]
+                }
+            
+            elif suite == "financial_suite":
+                module = {
+                    "suite_name": "Financial Management Suite",
+                    "interactive_features": [
+                        {
+                            "name": "Automated Invoice Processing",
+                            "description": "AI-powered invoice recognition and processing",
+                            "demo_data": "Upload and process real invoices" if is_authorized_user else "Sample invoice processing",
+                            "interaction_type": "file_upload_demo" if is_authorized_user else "video_demo"
+                        },
+                        {
+                            "name": "Cash Flow Forecasting",
+                            "description": "Predictive cash flow analysis and planning",
+                            "demo_data": "Real financial data integration" if is_authorized_user else "Example cash flow charts",
+                            "interaction_type": "live_financial_dashboard" if is_authorized_user else "static_examples"
+                        },
+                        {
+                            "name": "Expense Automation",
+                            "description": "Smart categorization and approval workflows",
+                            "demo_data": "Connect to real expense sources" if is_authorized_user else "Demo expense categories",
+                            "interaction_type": "workflow_builder" if is_authorized_user else "feature_overview"
+                        }
+                    ]
+                }
+            
+            elif suite == "ai_suite":
+                module = {
+                    "suite_name": "Conversational AI Suite",
+                    "interactive_features": [
+                        {
+                            "name": "Intelligent Chatbot Builder",
+                            "description": "Create and deploy AI-powered customer service bots",
+                            "demo_data": "Build and test live chatbot" if is_authorized_user else "Pre-built chatbot examples",
+                            "interaction_type": "chatbot_builder" if is_authorized_user else "demo_conversation"
+                        },
+                        {
+                            "name": "Email Campaign AI",
+                            "description": "AI-generated personalized email campaigns",
+                            "demo_data": "Generate real campaign content" if is_authorized_user else "Sample email templates",
+                            "interaction_type": "content_generator" if is_authorized_user else "template_gallery"
+                        },
+                        {
+                            "name": "Voice Integration",
+                            "description": "Voice-to-text and intelligent call analysis",
+                            "demo_data": "Record and analyze real calls" if is_authorized_user else "Sample call analytics",
+                            "interaction_type": "voice_recorder" if is_authorized_user else "audio_examples"
+                        }
+                    ]
+                }
+            
+            elif suite == "hr_suite":
+                module = {
+                    "suite_name": "HR Management Suite", 
+                    "interactive_features": [
+                        {
+                            "name": "Automated Recruitment",
+                            "description": "AI-powered candidate screening and matching",
+                            "demo_data": "Upload real job descriptions and resumes" if is_authorized_user else "Sample candidate matching",
+                            "interaction_type": "recruitment_pipeline" if is_authorized_user else "matching_examples"
+                        },
+                        {
+                            "name": "Performance Analytics",
+                            "description": "Employee performance tracking and insights",
+                            "demo_data": "Live performance dashboard" if is_authorized_user else "Anonymous performance metrics",
+                            "interaction_type": "analytics_dashboard" if is_authorized_user else "chart_examples"
+                        },
+                        {
+                            "name": "Onboarding Automation",
+                            "description": "Streamlined new hire processes",
+                            "demo_data": "Create real onboarding workflows" if is_authorized_user else "Sample onboarding steps",
+                            "interaction_type": "workflow_designer" if is_authorized_user else "process_overview"
+                        }
+                    ]
+                }
+            
+            demo_experience["interactive_modules"].append(module)
+        
+        # Add demo completion pathway
+        demo_experience["completion_pathway"] = {
+            "current_step": 1,
+            "total_steps": 5,
+            "steps": [
+                "Explore Interactive Features",
+                "Customize Your Dashboard", 
+                "Test Real Data Integration",
+                "Configure Automation Rules",
+                "Complete Setup & Go Live" if is_authorized_user else "Schedule Implementation Call"
+            ]
+        }
+        
+        # Enhanced support for authorized users
+        if is_authorized_user:
+            demo_experience["premium_support"] = {
+                "dedicated_success_manager": True,
+                "technical_implementation_support": True,
+                "custom_integration_consultation": True,
+                "priority_feature_requests": True,
+                "direct_development_team_access": True
+            }
+        
+        return {
+            "success": True,
+            "demo_experience": demo_experience,
+            "message": "Enhanced demo experience activated!" if is_authorized_user else "Standard demo experience ready"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Interactive demo creation failed: {e}")
+        raise HTTPException(status_code=500, detail="Demo experience creation failed")
+
 @router.post("/track-onboarding")
 async def track_onboarding_step(
     tracking: OnboardingStepTracking,
@@ -437,11 +685,129 @@ async def get_conversion_analytics() -> Dict[str, Any]:
             }
         }
         
+        except Exception as e:
+            logger.error(f"Analytics retrieval failed: {e}")
+            raise HTTPException(status_code=500, detail="Analytics retrieval failed")
+
+@router.post("/complete-demo-experience")
+async def complete_demo_experience(
+    session_id: str,
+    user_email: str,
+    selected_configuration: Dict[str, Any],
+    background_tasks: BackgroundTasks
+) -> Dict[str, Any]:
+    """
+    Complete the demo experience and transition authorized users to full platform access
+    """
+    try:
+        # Verify session exists
+        session_data = onboarding_sessions.get(session_id)
+        if not session_data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Check authorization
+        bypass_check = check_billing_bypass_before_payment(user_email, ["ml_suite", "financial_suite", "ai_suite", "hr_suite"])
+        
+        if not bypass_check["bypass_billing"]:
+            raise HTTPException(status_code=403, detail="Demo completion requires authorized access")
+        
+        # Create platform configuration
+        platform_configuration = {
+            "user_email": user_email,
+            "company_profile": session_data["profile"].__dict__,
+            "selected_suites": selected_configuration.get("selected_suites", []),
+            "custom_settings": selected_configuration.get("custom_settings", {}),
+            "integration_preferences": selected_configuration.get("integrations", {}),
+            "demo_completion_date": datetime.now(timezone.utc).isoformat(),
+            "access_level": "full_platform_access",
+            "billing_status": "bypass_active",
+            "support_tier": "premium"
+        }
+        
+        # Generate onboarding completion summary
+        completion_summary = {
+            "demo_experience_completed": True,
+            "total_time_spent": (datetime.now(timezone.utc) - session_data["created_at"]).total_seconds() / 60,  # minutes
+            "features_explored": len(selected_configuration.get("selected_suites", [])),
+            "configuration_saved": True,
+            "platform_ready": True
+        }
+        
+        # Create success pathway
+        success_pathway = {
+            "immediate_access": {
+                "dashboard_url": "https://app.pulsebridge.ai/dashboard",
+                "login_method": "email_verification",
+                "first_login_bonus": "Advanced analytics pack unlocked"
+            },
+            "onboarding_support": {
+                "success_manager_contact": "success@pulsebridge.ai",
+                "implementation_guide": "https://docs.pulsebridge.ai/implementation",
+                "video_tutorials": "https://learn.pulsebridge.ai/tutorials",
+                "community_access": "https://community.pulsebridge.ai"
+            },
+            "next_milestones": [
+                {
+                    "milestone": "Connect Your First Data Source",
+                    "estimated_time": "5 minutes",
+                    "reward": "Custom dashboard themes unlocked"
+                },
+                {
+                    "milestone": "Configure Your First Automation",
+                    "estimated_time": "15 minutes", 
+                    "reward": "Advanced workflow templates unlocked"
+                },
+                {
+                    "milestone": "Generate Your First Report",
+                    "estimated_time": "10 minutes",
+                    "reward": "Premium reporting features unlocked"
+                }
+            ]
+        }
+        
+        # Track completion
+        background_tasks.add_task(
+            track_onboarding_step,
+            "demo_experience_completed",
+            session_id,
+            {
+                "user_email": user_email,
+                "completion_type": "full_demo_experience",
+                "selected_suites": selected_configuration.get("selected_suites", []),
+                "bypass_reason": bypass_check["reason"]
+            }
+        )
+        
+        # Send welcome email
+        background_tasks.add_task(
+            send_demo_completion_email,
+            user_email,
+            platform_configuration,
+            completion_summary
+        )
+        
+        return {
+            "success": True,
+            "message": "Congratulations! Your PulseBridge demo experience is complete.",
+            "platform_configuration": platform_configuration,
+            "completion_summary": completion_summary,
+            "success_pathway": success_pathway,
+            "authorization_status": {
+                "billing_bypass_active": True,
+                "access_level": "unlimited",
+                "expires_at": None,  # Unlimited for internal users
+                "support_tier": "premium"
+            }
+        }
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Analytics retrieval failed: {e}")
-        raise HTTPException(status_code=500, detail="Analytics retrieval failed")
+        logger.error(f"Demo completion failed: {e}")
+        raise HTTPException(status_code=500, detail="Demo completion failed")
 
 # Helper Functions
+def generate_personalized_demo(profile: CompanyProfileRequest, suite: str, demo_type: str) -> Dict[str, Any]:# Helper Functions
 def generate_personalized_demo(
     profile: CompanyProfileRequest,
     suite: str, 
@@ -548,3 +914,25 @@ async def process_conversion_analytics(session_id: str, step_name: str):
         
     except Exception as e:
         logger.error(f"Analytics processing failed: {e}")
+
+async def send_demo_completion_email(user_email: str, platform_config: Dict[str, Any], completion_summary: Dict[str, Any]):
+    """Background task for sending demo completion email"""
+    try:
+        # In production, this would:
+        # - Send personalized welcome email
+        # - Include custom dashboard setup guide
+        # - Provide next steps and milestones
+        # - Include contact information for success manager
+        
+        logger.info(f"Demo completion email sent to {user_email}")
+        
+        # Email content would include:
+        # - Welcome message with company name
+        # - Summary of configured features
+        # - Links to platform access
+        # - Success manager contact info
+        # - Implementation timeline
+        # - Resource links and tutorials
+        
+    except Exception as e:
+        logger.error(f"Demo completion email failed: {e}")
