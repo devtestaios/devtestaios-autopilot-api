@@ -41,23 +41,57 @@ except ImportError as e:
     SUPABASE_AVAILABLE = False
 
 # Import AI Services
-from app.ai_endpoints import ai_router
-from app.ai_chat_service import ai_service, ChatRequest
+try:
+    from app.ai_endpoints import ai_router
+    from app.ai_chat_service import ai_service, ChatRequest
+    AI_SERVICES_AVAILABLE = True
+except Exception as e:
+    logger.error(f"Failed to import AI services: {e}")
+    AI_SERVICES_AVAILABLE = False
+    ai_router = None
+    ai_service = None
 
 # Import ML and Predictive Analytics Services
-from app.ml_service_integration import MLServiceClient
-from app.predictive_analytics import PredictiveAnalytics
+try:
+    from app.ml_service_integration import MLServiceClient
+    from app.predictive_analytics import PredictiveAnalytics
+    ML_SERVICES_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"ML services not available: {e}")
+    ML_SERVICES_AVAILABLE = False
+    MLServiceClient = None
+    PredictiveAnalytics = None
 
 # Import Financial Suite Services
-from app.financial_suite import FinancialSuite
-from app.invoice_billing_system import InvoicingSystem
+try:
+    from app.financial_suite import FinancialSuite
+    from app.invoice_billing_system import InvoicingSystem
+    FINANCIAL_SUITE_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Financial suite not available: {e}")
+    FINANCIAL_SUITE_AVAILABLE = False
+    FinancialSuite = None
+    InvoicingSystem = None
 
 # Import Enhanced Conversational AI Services
-from app.enhanced_conversational_ai import EnhancedConversationalAI
-from app.voice_integration_service import VoiceIntegrationService
+try:
+    from app.enhanced_conversational_ai import EnhancedConversationalAI
+    from app.voice_integration_service import VoiceIntegrationService
+    CONVERSATIONAL_AI_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Conversational AI not available: {e}")
+    CONVERSATIONAL_AI_AVAILABLE = False
+    EnhancedConversationalAI = None
+    VoiceIntegrationService = None
 
 # Import HR Suite Services
-from app.hr_suite import HRSuite
+try:
+    from app.hr_suite import HRSuite
+    HR_SUITE_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"HR Suite not available: {e}")
+    HR_SUITE_AVAILABLE = False
+    HRSuite = None
 
 # ML Service and Predictive Analytics Instances
 ml_service_instance = None
@@ -70,6 +104,8 @@ hr_suite_instance = None
 
 async def get_ml_service():
     """Get or create ML service instance"""
+    if not ML_SERVICES_AVAILABLE or MLServiceClient is None:
+        raise HTTPException(status_code=503, detail="ML services not available")
     global ml_service_instance
     if ml_service_instance is None:
         ml_service_instance = MLServiceClient()
@@ -77,6 +113,8 @@ async def get_ml_service():
 
 async def get_predictive_analytics():
     """Get or create predictive analytics instance"""
+    if not ML_SERVICES_AVAILABLE or PredictiveAnalytics is None:
+        raise HTTPException(status_code=503, detail="Predictive analytics not available")
     global predictive_analytics_instance
     if predictive_analytics_instance is None:
         ml_service = await get_ml_service()
@@ -85,6 +123,8 @@ async def get_predictive_analytics():
 
 async def get_financial_suite():
     """Get or create financial suite instance"""
+    if not FINANCIAL_SUITE_AVAILABLE or FinancialSuite is None:
+        raise HTTPException(status_code=503, detail="Financial suite not available")
     global financial_suite_instance
     if financial_suite_instance is None:
         financial_suite_instance = FinancialSuite()
@@ -92,6 +132,8 @@ async def get_financial_suite():
 
 async def get_invoicing_system():
     """Get or create invoicing system instance"""
+    if not FINANCIAL_SUITE_AVAILABLE or InvoicingSystem is None:
+        raise HTTPException(status_code=503, detail="Invoicing system not available")
     global invoicing_system_instance
     if invoicing_system_instance is None:
         invoicing_system_instance = InvoicingSystem()
@@ -99,6 +141,8 @@ async def get_invoicing_system():
 
 async def get_conversational_ai():
     """Get or create conversational AI instance"""
+    if not CONVERSATIONAL_AI_AVAILABLE or EnhancedConversationalAI is None:
+        raise HTTPException(status_code=503, detail="Conversational AI not available")
     global conversational_ai_instance
     if conversational_ai_instance is None:
         conversational_ai_instance = EnhancedConversationalAI()
@@ -106,6 +150,8 @@ async def get_conversational_ai():
 
 async def get_voice_integration():
     """Get or create voice integration instance"""
+    if not CONVERSATIONAL_AI_AVAILABLE or VoiceIntegrationService is None:
+        raise HTTPException(status_code=503, detail="Voice integration not available")
     global voice_integration_instance
     if voice_integration_instance is None:
         voice_integration_instance = VoiceIntegrationService()
@@ -113,25 +159,57 @@ async def get_voice_integration():
 
 async def get_hr_suite():
     """Get or create HR suite instance"""
+    if not HR_SUITE_AVAILABLE or HRSuite is None:
+        raise HTTPException(status_code=503, detail="HR suite not available")
     global hr_suite_instance
     if hr_suite_instance is None:
         hr_suite_instance = HRSuite()
     return hr_suite_instance
 
 # Import Optimization Engine
-from app.optimization_endpoints import router as optimization_router
+try:
+    from app.optimization_endpoints import router as optimization_router
+    OPTIMIZATION_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Optimization endpoints not available: {e}")
+    OPTIMIZATION_AVAILABLE = False
+    optimization_router = None
 
 # Import Multi-Platform Sync Engine
-from app.sync_endpoints import router as sync_router
+try:
+    from app.sync_endpoints import router as sync_router
+    SYNC_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Sync endpoints not available: {e}")
+    SYNC_AVAILABLE = False
+    sync_router = None
 
 # Import Advanced Analytics
-from app.analytics_endpoints import router as analytics_router
+try:
+    from app.analytics_endpoints import router as analytics_router
+    ANALYTICS_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Analytics endpoints not available: {e}")
+    ANALYTICS_AVAILABLE = False
+    analytics_router = None
 
 # Import Autonomous Decision Framework
-from app.autonomous_decision_endpoints import router as autonomous_router
+try:
+    from app.autonomous_decision_endpoints import router as autonomous_router
+    AUTONOMOUS_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Autonomous decision endpoints not available: {e}")
+    AUTONOMOUS_AVAILABLE = False
+    autonomous_router = None
 
 # Import Hybrid AI System
-from app.hybrid_ai_endpoints import router as hybrid_ai_router
+try:
+    from app.hybrid_ai_endpoints import router as hybrid_ai_router
+    HYBRID_AI_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Hybrid AI endpoints not available: {e}")
+    HYBRID_AI_AVAILABLE = False
+    hybrid_ai_router = None
 
 # Import Billing System
 try:
@@ -277,22 +355,46 @@ app.add_middleware(
 )
 
 # Include AI router
-app.include_router(ai_router, prefix="/api/v1")
+if AI_SERVICES_AVAILABLE and ai_router:
+    app.include_router(ai_router, prefix="/api/v1")
+    logger.info("✓ AI services loaded successfully")
+else:
+    logger.warning("AI services not available - skipping")
 
 # Include Optimization Engine router
-app.include_router(optimization_router)
+if OPTIMIZATION_AVAILABLE and optimization_router:
+    app.include_router(optimization_router)
+    logger.info("✓ Optimization engine loaded successfully")
+else:
+    logger.warning("Optimization engine not available - skipping")
 
 # Include Multi-Platform Sync router
-app.include_router(sync_router)
+if SYNC_AVAILABLE and sync_router:
+    app.include_router(sync_router)
+    logger.info("✓ Multi-platform sync loaded successfully")
+else:
+    logger.warning("Multi-platform sync not available - skipping")
 
 # Include Advanced Analytics Engine router
-app.include_router(analytics_router)
+if ANALYTICS_AVAILABLE and analytics_router:
+    app.include_router(analytics_router)
+    logger.info("✓ Analytics engine loaded successfully")
+else:
+    logger.warning("Analytics engine not available - skipping")
 
 # Include Autonomous Decision Framework router
-app.include_router(autonomous_router)
+if AUTONOMOUS_AVAILABLE and autonomous_router:
+    app.include_router(autonomous_router)
+    logger.info("✓ Autonomous decision framework loaded successfully")
+else:
+    logger.warning("Autonomous decision framework not available - skipping")
 
 # Include Hybrid AI System router (NEW)
-app.include_router(hybrid_ai_router)
+if HYBRID_AI_AVAILABLE and hybrid_ai_router:
+    app.include_router(hybrid_ai_router)
+    logger.info("✓ Hybrid AI system loaded successfully")
+else:
+    logger.warning("Hybrid AI system not available - skipping")
 
 # Include Billing System router (REVENUE ENGINE)
 if BILLING_AVAILABLE and billing_router:
