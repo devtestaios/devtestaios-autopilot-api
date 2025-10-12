@@ -4976,3 +4976,27 @@ except Exception as e:
 # ================================
 # END ADMIN USER MANAGEMENT
 # ================================
+
+# ================================
+# OAUTH & PLATFORM INTEGRATIONS
+# ================================
+
+try:
+    # Import Meta OAuth endpoints
+    from app.oauth_meta import router as oauth_router
+    app.include_router(oauth_router)
+    logger.info("✓ Meta OAuth endpoints loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load Meta OAuth: {e}")
+
+try:
+    # Import Meta campaign sync endpoints
+    from app.meta_campaign_sync import router as meta_sync_router
+    app.include_router(meta_sync_router)
+    logger.info("✓ Meta campaign sync endpoints loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load Meta campaign sync: {e}")
+
+# ================================
+# END OAUTH
+# ================================

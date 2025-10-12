@@ -76,14 +76,14 @@ class ModularPricingEngine:
     """
     
     def __init__(self):
-        self.base_platform_price = Decimal("29.00")  # Core platform access
+        self.base_platform_price = Decimal("69.00")  # Updated base price to match Starter tier
         
-        # Suite pricing (base startup pricing)
+        # Suite pricing (base startup pricing) - adjusted to work with new structure
         self.suite_catalog = {
             Suite.PREDICTIVE_ANALYTICS: SuiteInfo(
                 name="Predictive Analytics Suite",
                 description="AI-powered forecasting, campaign optimization, and market trend analysis",
-                base_price=Decimal("149.00"),
+                base_price=Decimal("100.00"),  # Reduced from 149
                 features=[
                     "ML Campaign Performance Forecasting",
                     "Revenue Prediction Models", 
@@ -99,7 +99,7 @@ class ModularPricingEngine:
             Suite.FINANCIAL_MANAGEMENT: SuiteInfo(
                 name="Financial Management Suite", 
                 description="Complete budget management, invoicing, and billing automation",
-                base_price=Decimal("99.00"),
+                base_price=Decimal("75.00"),  # Reduced from 99
                 features=[
                     "Advanced Budget Allocation & Tracking",
                     "Professional Invoice Generation",
@@ -115,7 +115,7 @@ class ModularPricingEngine:
             Suite.CONVERSATIONAL_AI: SuiteInfo(
                 name="Conversational AI Suite",
                 description="Multi-language AI communication with voice integration",
-                base_price=Decimal("79.00"),
+                base_price=Decimal("60.00"),  # Reduced from 79
                 features=[
                     "Multi-language Conversational AI",
                     "Real-time Sentiment Analysis",
@@ -131,7 +131,7 @@ class ModularPricingEngine:
             Suite.HR_MANAGEMENT: SuiteInfo(
                 name="HR Management Suite",
                 description="Complete employee lifecycle management and performance tracking",
-                base_price=Decimal("69.00"),
+                base_price=Decimal("40.00"),  # Reduced from 69
                 features=[
                     "Employee Lifecycle Management",
                     "Performance Review System",

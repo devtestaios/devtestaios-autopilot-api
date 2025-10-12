@@ -239,7 +239,7 @@ async def get_suite_catalog() -> Dict[str, Any]:
             "base_platform": {
                 "name": "PulseBridge.ai Platform",
                 "description": "Core dashboard, integrations, and data management",
-                "base_price": 29.0,
+                "base_price": 69.0,  # Updated to match new Starter tier
                 "features": [
                     "Unified dashboard",
                     "Google Ads integration",
