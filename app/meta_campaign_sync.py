@@ -3,7 +3,7 @@ Meta Campaign Sync Service
 Syncs campaigns and metrics from Meta Ads to local database
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import requests
@@ -11,10 +11,15 @@ import os
 import logging
 from datetime import datetime, timedelta
 from supabase import create_client, Client
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/meta", tags=["meta-sync"])
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Supabase Configuration
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
@@ -239,7 +244,9 @@ def save_metrics_to_db(campaign_id: str, insights: List[Dict]) -> int:
     return metrics_saved
 
 @router.post("/sync-campaigns")
+@limiter.limit("5/minute")  # Allow 5 sync requests per minute to prevent abuse
 async def sync_meta_campaigns(
+    request: Request,
     user_id: str = Query(..., description="User ID to sync campaigns for"),
     days: int = Query(30, description="Number of days of metrics to sync")
 ) -> SyncResponse:

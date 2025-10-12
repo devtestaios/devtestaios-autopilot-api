@@ -18,6 +18,7 @@ requests==2.32.3
 pytest==8.3.4
 pytest-asyncio==0.24.0
 pyjwt==2.10.1
+slowapi==0.1.9
 # ML dependencies temporarily disabled for fast deployment
 # Will be added via separate ML service or optional pip install
 # numpy==1.24.3

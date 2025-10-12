@@ -3,7 +3,7 @@ Meta (Facebook/Instagram) OAuth Flow
 Handles user authorization and token exchange for Meta Business API
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from pydantic import BaseModel
 from typing import Optional
 import requests
@@ -11,6 +11,8 @@ import os
 import logging
 from datetime import datetime
 import secrets
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 # Import Supabase for storing connections
 from supabase import create_client, Client
@@ -18,6 +20,9 @@ from supabase import create_client, Client
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/oauth", tags=["oauth"])
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Meta OAuth Configuration
 META_APP_ID = os.getenv("META_APP_ID")
@@ -48,7 +53,9 @@ class MetaCallbackResponse(BaseModel):
     message: str
 
 @router.get("/meta/authorize-url")
+@limiter.limit("10/minute")  # Allow 10 authorization requests per minute
 async def get_meta_authorization_url(
+    request: Request,
     user_id: str = Query(..., description="User ID to associate with this connection")
 ) -> MetaAuthResponse:
     """
@@ -97,7 +104,9 @@ async def get_meta_authorization_url(
     )
 
 @router.get("/meta/callback")
+@limiter.limit("20/minute")  # Allow 20 callback requests per minute
 async def meta_oauth_callback(
+    request: Request,
     code: str = Query(..., description="Authorization code from Meta"),
     state: str = Query(..., description="State parameter for CSRF protection"),
     error: Optional[str] = Query(None, description="Error from Meta if authorization failed"),
