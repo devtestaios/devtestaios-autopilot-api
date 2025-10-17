@@ -10,8 +10,23 @@ import os
 # Database URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
-# Create engine
-engine = create_engine(DATABASE_URL, echo=False)
+# Configure SSL for Supabase connections
+connect_args = {}
+if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
+    # Add SSL configuration for PostgreSQL/Supabase
+    connect_args = {
+        "sslmode": "require",
+        "connect_timeout": 10,
+    }
+
+# Create engine with SSL support
+engine = create_engine(
+    DATABASE_URL, 
+    echo=False,
+    connect_args=connect_args,
+    pool_pre_ping=True,  # Verify connections before using them
+    pool_recycle=300,     # Recycle connections after 5 minutes
+)
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

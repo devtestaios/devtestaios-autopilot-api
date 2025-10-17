@@ -22,6 +22,14 @@ class DatabasePool:
         if not database_url:
             raise ValueError("DATABASE_URL environment variable is required")
         
+        # Configure SSL for Supabase connections
+        connect_args = {}
+        if database_url.startswith("postgresql://"):
+            connect_args = {
+                "sslmode": "require",
+                "connect_timeout": 10,
+            }
+        
         # Connection pool settings for scale
         self.engine = create_engine(
             database_url,
@@ -32,7 +40,8 @@ class DatabasePool:
             pool_recycle=3600,     # Recycle connections after 1 hour
             pool_pre_ping=True,    # Validate connections before use
             echo=False,            # Set to True for SQL debugging
-            pool_reset_on_return='commit'  # Reset connection state
+            pool_reset_on_return='commit',  # Reset connection state
+            connect_args=connect_args  # SSL configuration
         )
         
         # Setup session factory
