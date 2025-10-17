@@ -20,8 +20,8 @@ pytest==8.3.4
 pytest-asyncio==0.24.0
 pyjwt==2.10.1
 slowapi==0.1.9
-# ML dependencies temporarily disabled for fast deployment
-# Will be added via separate ML service or optional pip install
-# numpy==1.24.3
-# scikit-learn==1.3.2  
-# pandas==2.0.3
+
+# ML/Data Science Dependencies (for ML Optimization & Lead Scoring)
+numpy>=1.26.0,<2.0.0
+scikit-learn>=1.3.0
+pandas>=2.1.0
