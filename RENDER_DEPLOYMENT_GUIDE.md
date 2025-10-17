@@ -24,6 +24,15 @@
   - Added `pool_recycle=300` to recycle stale connections
 - **Result**: Backend properly handles SSL connections to Supabase
 
+### 3. Fixed NullPool Configuration TypeError
+- **Files**: `app/database.py`, `app/core/database_pool.py`
+- **Error**: `TypeError: Invalid argument(s) 'pool_size','max_overflow' sent to create_engine()`
+- **Changes**:
+  - NullPool: No pool_size/max_overflow arguments (doesn't use pooling)
+  - QueuePool: Includes pool_size, max_overflow, pool_pre_ping, pool_recycle
+  - Auto-detection logs which configuration is active
+- **Result**: Backend starts successfully with either Direct Connection or Transaction Pooler
+
 ---
 
 ## 🔧 Render Environment Variables Setup
@@ -253,6 +262,7 @@ postgresql://postgres:9bKqs5dnhSRtUWfh@db.aggorhmzuhdirterhyej.supabase.co:5432/
 |------|-------|----------|--------|
 | Oct 17, 2025 | `No module named 'psycopg2'` | Added `psycopg2-binary>=2.9.7` to requirements.txt | ✅ Fixed |
 | Oct 17, 2025 | `SSL connection has been closed` | Added SSL config to SQLAlchemy engines | ✅ Fixed |
+| Oct 17, 2025 | `Invalid argument(s) 'pool_size','max_overflow'` | Removed pool args for NullPool, kept for QueuePool | ✅ Fixed |
 
 ---
 
