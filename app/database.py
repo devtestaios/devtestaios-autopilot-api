@@ -14,8 +14,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 connect_args = {}
 engine_args = {
     "echo": False,
-    "pool_pre_ping": True,  # Verify connections before using them
-    "pool_recycle": 300,     # Recycle connections after 5 minutes
 }
 
 if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
@@ -25,14 +23,22 @@ if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
         "connect_timeout": 10,
     }
     
-    # Disable prepared statements if using Supabase Transaction Pooler
-    # Transaction pooler doesn't support PREPARE statements
+    # Check connection type and configure appropriately
     if "pooler.supabase.com" in DATABASE_URL:
-        engine_args["pool_size"] = 5
-        engine_args["max_overflow"] = 10
-        # Use NullPool for transaction pooler to avoid connection issues
+        # Transaction pooler - use NullPool (no pooling)
+        # NullPool doesn't accept pool_size/max_overflow arguments
         from sqlalchemy.pool import NullPool
         engine_args["poolclass"] = NullPool
+        print("INFO: Using Supabase Transaction Pooler with NullPool")
+    else:
+        # Direct connection - use QueuePool with connection pooling
+        from sqlalchemy.pool import QueuePool
+        engine_args["poolclass"] = QueuePool
+        engine_args["pool_size"] = 10
+        engine_args["max_overflow"] = 20
+        engine_args["pool_pre_ping"] = True
+        engine_args["pool_recycle"] = 300
+        print("INFO: Using Supabase Direct Connection with QueuePool")
     
     engine_args["connect_args"] = connect_args
 

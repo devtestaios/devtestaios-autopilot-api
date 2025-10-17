@@ -26,10 +26,6 @@ class DatabasePool:
         connect_args = {}
         engine_kwargs = {
             "echo": False,
-            "pool_pre_ping": True,
-            "pool_timeout": 30,
-            "pool_recycle": 3600,
-            "pool_reset_on_return": 'commit',
         }
         
         if database_url.startswith("postgresql://"):
@@ -38,20 +34,23 @@ class DatabasePool:
                 "connect_timeout": 10,
             }
             
-            # Check if using Supabase Transaction Pooler
+            # Check if using Supabase Transaction Pooler vs Direct Connection
             # Transaction pooler doesn't support PREPARE statements
             if "pooler.supabase.com" in database_url:
-                # Use smaller pool size for transaction pooler
-                engine_kwargs["poolclass"] = QueuePool
-                engine_kwargs["pool_size"] = 5
-                engine_kwargs["max_overflow"] = 10
-                print("INFO: Using Supabase Transaction Pooler configuration")
+                # Transaction Pooler - use NullPool (no connection pooling)
+                from sqlalchemy.pool import NullPool
+                engine_kwargs["poolclass"] = NullPool
+                print("INFO: Using Supabase Transaction Pooler with NullPool")
             else:
-                # Direct connection - use larger pool
+                # Direct Connection - use QueuePool with full pooling
                 engine_kwargs["poolclass"] = QueuePool
                 engine_kwargs["pool_size"] = 20
                 engine_kwargs["max_overflow"] = 30
-                print("INFO: Using Supabase Direct Connection configuration")
+                engine_kwargs["pool_pre_ping"] = True
+                engine_kwargs["pool_timeout"] = 30
+                engine_kwargs["pool_recycle"] = 3600
+                engine_kwargs["pool_reset_on_return"] = 'commit'
+                print("INFO: Using Supabase Direct Connection with QueuePool")
             
             engine_kwargs["connect_args"] = connect_args
         
