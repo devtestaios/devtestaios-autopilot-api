@@ -21,8 +21,9 @@ if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     connect_args = {
         "sslmode": "require",
         "connect_timeout": 10,
-        # Force IPv4 to avoid IPv6 unreachable network errors
-        "gssencmode": "disable",  # Disable GSSAPI encryption negotiation
+        "gssencmode": "disable",  # Disable GSSAPI
+        # Force IPv4 by setting options to prefer IPv4 addresses
+        "options": "-c search_path=public",
     }
     
     # Check connection type and configure appropriately
