@@ -35,20 +35,30 @@
 
 ### Step 2: Configure Required Variables
 
-#### Database (CRITICAL - Use Transaction Pooler)
+#### Database (CRITICAL - Use Direct Connection for Render)
+
+**RECOMMENDED for Render (persistent containers):**
+```bash
+DATABASE_URL=postgresql://postgres:9bKqs5dnhSRtUWfh@db.aggorhmzuhdirterhyej.supabase.co:5432/postgres
+```
+
+**Why Direct Connection?**
+- ✅ Supports all PostgreSQL features including PREPARE statements
+- ✅ Better for persistent, long-lived connections (Render containers)
+- ✅ Lower latency, direct database access
+- ✅ SSL properly configured in the code
+
+**Alternative (Transaction Pooler - for serverless only):**
 ```bash
 DATABASE_URL=postgresql://postgres.aggorhmzuhdirterhyej:9bKqs5dnhSRtUWfh@aws-1-us-east-2.pooler.supabase.com:6543/postgres
 ```
 
-**Why Transaction Pooler?**
-- Better connection management for serverless/scaling environments
-- Reduced connection overhead
-- SSL support is now properly configured in the code
+**Why NOT Transaction Pooler for Render?**
+- ⚠️ Does NOT support PREPARE statements (per Supabase docs)
+- ⚠️ Better for serverless/edge functions with brief connections
+- ⚠️ Adds unnecessary overhead for persistent containers
 
-**Alternative (Direct Connection - if pooler has issues):**
-```bash
-DATABASE_URL=postgresql://postgres:9bKqs5dnhSRtUWfh@db.aggorhmzuhdirterhyej.supabase.co:5432/postgres
-```
+**Note**: The code now automatically detects which connection type you're using and configures the pool accordingly!
 
 #### Supabase Configuration
 ```bash

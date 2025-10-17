@@ -24,25 +24,39 @@ class DatabasePool:
         
         # Configure SSL for Supabase connections
         connect_args = {}
+        engine_kwargs = {
+            "echo": False,
+            "pool_pre_ping": True,
+            "pool_timeout": 30,
+            "pool_recycle": 3600,
+            "pool_reset_on_return": 'commit',
+        }
+        
         if database_url.startswith("postgresql://"):
             connect_args = {
                 "sslmode": "require",
                 "connect_timeout": 10,
             }
+            
+            # Check if using Supabase Transaction Pooler
+            # Transaction pooler doesn't support PREPARE statements
+            if "pooler.supabase.com" in database_url:
+                # Use smaller pool size for transaction pooler
+                engine_kwargs["poolclass"] = QueuePool
+                engine_kwargs["pool_size"] = 5
+                engine_kwargs["max_overflow"] = 10
+                print("INFO: Using Supabase Transaction Pooler configuration")
+            else:
+                # Direct connection - use larger pool
+                engine_kwargs["poolclass"] = QueuePool
+                engine_kwargs["pool_size"] = 20
+                engine_kwargs["max_overflow"] = 30
+                print("INFO: Using Supabase Direct Connection configuration")
+            
+            engine_kwargs["connect_args"] = connect_args
         
-        # Connection pool settings for scale
-        self.engine = create_engine(
-            database_url,
-            poolclass=QueuePool,
-            pool_size=20,          # Base connections
-            max_overflow=30,       # Additional connections under load
-            pool_timeout=30,       # Timeout for getting connection
-            pool_recycle=3600,     # Recycle connections after 1 hour
-            pool_pre_ping=True,    # Validate connections before use
-            echo=False,            # Set to True for SQL debugging
-            pool_reset_on_return='commit',  # Reset connection state
-            connect_args=connect_args  # SSL configuration
-        )
+        # Create engine with optimized settings
+        self.engine = create_engine(database_url, **engine_kwargs)
         
         # Setup session factory
         self.SessionLocal = sessionmaker(
